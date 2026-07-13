@@ -129,6 +129,7 @@ int main(void)
   while (1)
   {
     system_state();
+    gyro_task();
     blueteeth_task();
     display_task();
     /* USER CODE END WHILE */
@@ -189,6 +190,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM6) {
     static uint8_t system_led_cnt = 0;
+    static uint8_t gyro_cnt = 0;
 
     display_refresh_flag = 1;
     // 系统运行状态指示灯标志位
@@ -198,6 +200,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       set_system_led_flag(1);
     }
 
+    gyro_cnt++;
+    if (gyro_cnt >= 1) {
+      gyro_cnt = 0;
+      gyro_tick_flag = 1;
+    }
   }
 }
 
@@ -206,12 +213,23 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
   if (huart->Instance == USART1) {
     blueteeth_rx_callback(huart, Size);
   }
+
+  if (huart->Instance == USART6) {
+    gyro_rx_callback(huart, Size);
+  }
 }
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1) {
     blueteeth_tx_callback(huart);
+  }
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART6) {
+    gyro_error_callback(huart);
   }
 }
 

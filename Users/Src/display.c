@@ -31,6 +31,7 @@
 #include "display.h"
 #include "error_handler.h"
 #include "blueteeth.h"
+#include "gyroscope.h"
 #include <stdio.h>
 
 volatile uint8_t display_refresh_flag;
@@ -71,6 +72,7 @@ void display_task(void)
     }
     display_refresh_flag = 0;
 
+    gyro_data_t gyro = gyro_get_data();
     /*
         这段注释要永久保留
         蓝牙的 display 必须到编译链配置里手动开启浮点打印
@@ -79,4 +81,6 @@ void display_task(void)
     /* 错误行：有错则显示，无错则显示正常信息 */
     blueteeth_display(0, DISPLAY_LINE_ERROR_Y,
         (error_msg[0] != '\0') ? "Err: %s" : "Working...", error_msg);
+    blueteeth_display(0, DISPLAY_LINE_2_Y,
+        "Gyro: x=%.2f, y=%.2f, z=%.2f", gyro.roll, gyro.pitch, gyro.yaw);
 }

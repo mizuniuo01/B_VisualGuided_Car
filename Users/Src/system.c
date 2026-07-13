@@ -28,6 +28,7 @@
 #include "usart.h"
 #include "iwdg.h"
 #include "blueteeth.h"
+#include "gyroscope.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -174,5 +175,6 @@ void system_init(void)
 
     /* 通信单实例 */
     blueteeth_init(&huart1);
+    gyro_init(&huart6);
     /* oled_init(I2C_OLED_INST); */
 }
