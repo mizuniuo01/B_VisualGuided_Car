@@ -53,13 +53,22 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, sleepl_Pin|dirl_Pin|buzzer_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(sleepl_GPIO_Port, sleepl_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, dirr_Pin|sleepr_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, dirl_Pin|buzzer_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(dirr_GPIO_Port, dirr_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(sleepr_GPIO_Port, sleepr_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, led1_Pin|led2_Pin|led3_Pin|led4_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(ultratrig_GPIO_Port, ultratrig_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : sleepl_Pin dirl_Pin buzzer_Pin */
   GPIO_InitStruct.Pin = sleepl_Pin|dirl_Pin|buzzer_Pin;
@@ -81,6 +90,35 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : key1_Pin key2_Pin key3_Pin key4_Pin
+                           sensor3_Pin sensor4_Pin sensor5_Pin sensor6_Pin
+                           sensor7_Pin */
+  GPIO_InitStruct.Pin = key1_Pin|key2_Pin|key3_Pin|key4_Pin
+                          |sensor3_Pin|sensor4_Pin|sensor5_Pin|sensor6_Pin
+                          |sensor7_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ultratrig_Pin */
+  GPIO_InitStruct.Pin = ultratrig_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(ultratrig_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : key5_Pin sensor2_Pin */
+  GPIO_InitStruct.Pin = key5_Pin|sensor2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : senser1_Pin */
+  GPIO_InitStruct.Pin = senser1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(senser1_GPIO_Port, &GPIO_InitStruct);
 
 }
 

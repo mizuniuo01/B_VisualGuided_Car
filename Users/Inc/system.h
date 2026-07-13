@@ -25,5 +25,7 @@ motor_handle_t *system_motor_right(void);
 //pid_controller_t *system_pid_speed_right(void);
 
 void system_init(void);
+void set_system_led_flag(uint8_t state);
+void system_state(void);
 
 #endif /* SYSTEM_H */

@@ -56,6 +56,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Users/Src/pid.c
     Users/Src/pwm.c
     Users/Src/system.c
+    Users/Src/pattern.c
+    Users/Src/sensor.c
+    Users/Src/ultrasonic.c
 )
 
 # Add include paths

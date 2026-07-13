@@ -25,6 +25,10 @@
 
 #include "system.h"
 #include "gpio.h"
+#include "iwdg.h"
+
+/* 系统运行标志位 */
+static uint8_t system_led_flag = 0;
 
 /* 句柄实体（全部 static，外部不可直接访问） */
 static led_handle_t led1;
@@ -84,6 +88,68 @@ pid_controller_t *system_pid_speed_right(void)
     return &pid_speed_right;
 }
 */
+
+void set_system_led_flag(uint8_t state)
+{
+    system_led_flag = state;
+}
+
+/**
+ * @brief  系统状态处理函数（在 main.c 的 while(1) 中调用）
+ * @param  无
+ * @retval 无
+ */
+void system_state(void)
+{
+    static uint8_t startup_done = 0;
+    static uint8_t wdog_blink_left = 0; /* 快闪剩余次数（每 100ms 一次） */
+    static uint8_t heartbeat_led_cnt = 0; /* 心跳 LED 翻转计数器 */
+    static uint8_t heartbeat_led_flag = 0; /* 心跳 LED 翻转标志位 */
+    static uint8_t watchdog_led_flag = 0; /* 看门狗快闪标志位 */
+
+    HAL_IWDG_Refresh(&hiwdg);
+
+    /* 上电一次性检测：是否被 IWDG 复位 */
+    if (!startup_done) {
+        startup_done = 1;
+        if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST)) {
+            __HAL_RCC_CLEAR_RESET_FLAGS();
+            wdog_blink_left = 30; /* 30 次 × 50ms = 1.5 秒快闪 */
+        }
+    }
+
+    /* 50ms 节拍：心跳倍频 + 看门狗快闪 */
+    if (system_led_flag) {
+        system_led_flag = 0;
+
+        heartbeat_led_cnt++;
+        if (heartbeat_led_cnt >= 20) {
+            heartbeat_led_cnt = 0;
+            heartbeat_led_flag = 1;
+        }
+        watchdog_led_flag = 1;
+    }
+
+    /* 系统心跳：LED4 每秒翻转一次 */
+    if (heartbeat_led_flag) {
+        heartbeat_led_flag = 0;
+        led_toggle(&led4);
+    }
+
+    /* 被狗咬快闪：LED3 每 50ms 翻转，持续 1.5 秒后自动停止 */
+    if (wdog_blink_left > 0) {
+        if (watchdog_led_flag) {
+            watchdog_led_flag = 0;
+            wdog_blink_left--;
+            led_toggle(&led3);
+        }
+        /* 快闪结束后确保 LED3 熄灭 */
+        if (wdog_blink_left == 0) {
+            led_off(&led3);
+        }
+    }
+}
+
 /**
  * @brief  初始化所有驱动模块（在 main.c 进行平台初始化）
  * @param  无

@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2c.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -35,6 +37,9 @@
 #include "motor.h"
 #include "pid.h"
 #include "pwm.h"
+#include "pattern.h"
+#include "sensor.h"
+#include "ultrasonic.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,7 +91,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  __HAL_DBGMCU_FREEZE_IWDG();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -105,7 +110,14 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USART3_UART_Init();
   MX_USART6_UART_Init();
+  MX_I2C2_Init();
+  MX_I2C3_Init();
+  MX_TIM4_Init();
+  MX_UART4_Init();
+  MX_USART2_UART_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start_IT(&htim6);
   system_init();
   /* USER CODE END 2 */
 
@@ -113,14 +125,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    system_state();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    led_on(system_led1());
-    led_on(system_led2());
-    led_on(system_led3());
-    led_on(system_led4());
-    buzzer_off(system_buzzer());
   }
   /* USER CODE END 3 */
 }
@@ -142,8 +150,9 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLM = 6;
