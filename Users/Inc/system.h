@@ -6,6 +6,7 @@
 /* 驱动头文件（只添加有对应句柄的） */
 #include "led.h"
 #include "buzzer.h"
+#include "ultrasonic.h"
 #include "motor.h"
 #include "pid.h"
 
@@ -15,6 +16,7 @@ led_handle_t *system_led2(void);
 led_handle_t *system_led3(void);
 led_handle_t *system_led4(void);
 buzzer_handle_t *system_buzzer(void);
+ultrasonic_handle_t *system_ultrasonic(void);
 
 /* 驱动 / 执行器类 */
 motor_handle_t *system_motor_left(void);

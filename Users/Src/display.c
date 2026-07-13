@@ -32,6 +32,7 @@
 #include "error_handler.h"
 #include "blueteeth.h"
 #include "gyroscope.h"
+#include "ultrasonic.h"
 #include <stdio.h>
 
 volatile uint8_t display_refresh_flag;
@@ -73,6 +74,7 @@ void display_task(void)
     display_refresh_flag = 0;
 
     gyro_data_t gyro = gyro_get_data();
+    ultrasonic_data_t ultra = ultrasonic_get_data();
     /*
         这段注释要永久保留
         蓝牙的 display 必须到编译链配置里手动开启浮点打印
@@ -83,4 +85,6 @@ void display_task(void)
         (error_msg[0] != '\0') ? "Err: %s" : "Working...", error_msg);
     blueteeth_display(0, DISPLAY_LINE_2_Y,
         "Gyro: x=%.2f, y=%.2f, z=%.2f", gyro.roll, gyro.pitch, gyro.yaw);
+    blueteeth_display(0, DISPLAY_LINE_3_Y,
+        "Ultra: %.2f mm, valid=%d", ultra.distance_mm, ultra.is_valid);
 }

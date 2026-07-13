@@ -130,6 +130,7 @@ int main(void)
   {
     system_state();
     gyro_task();
+    ultrasonic_task(system_ultrasonic());
     blueteeth_task();
     display_task();
     /* USER CODE END WHILE */
@@ -230,6 +231,13 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART6) {
     gyro_error_callback(huart);
+  }
+}
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM4) {
+    ultrasonic_capture_callback(system_ultrasonic(), htim);
   }
 }
 

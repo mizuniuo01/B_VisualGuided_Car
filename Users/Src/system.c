@@ -26,9 +26,11 @@
 #include "system.h"
 #include "gpio.h"
 #include "usart.h"
+#include "tim.h"
 #include "iwdg.h"
 #include "blueteeth.h"
 #include "gyroscope.h"
+#include "ultrasonic.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -39,6 +41,7 @@ static led_handle_t led2;
 static led_handle_t led3;
 static led_handle_t led4;
 static buzzer_handle_t buzzer;
+static ultrasonic_handle_t ultra;
 static motor_handle_t motor_left;
 static motor_handle_t motor_right;
 /*static pid_controller_t pid_speed_left;
@@ -69,6 +72,11 @@ led_handle_t *system_led4(void)
 buzzer_handle_t *system_buzzer(void)
 {
     return &buzzer;
+}
+
+ultrasonic_handle_t *system_ultrasonic(void)
+{
+    return &ultra;
 }
 
 motor_handle_t *system_motor_left(void)
@@ -172,6 +180,12 @@ void system_init(void)
 
     buzzer_cfg_t buzzer_cfg = {.port = GPIOA, .pin = buzzer_Pin, .active_level = 1};
     buzzer_init(&buzzer, &buzzer_cfg);
+
+    ultrasonic_cfg_t ultra_cfg = {
+        .trig_port = GPIOD,
+        .trig_pin  = ultratrig_Pin,
+    };
+    ultrasonic_init(&ultra, &ultra_cfg, &htim4);
 
     /* 通信单实例 */
     blueteeth_init(&huart1);
