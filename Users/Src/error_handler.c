@@ -13,8 +13,7 @@
  */
 
 #include "error_handler.h"
-
-extern void display_show_error(const char *format, ...);
+#include "display.h"
 
 /* 错误处理参数 */
 typedef enum {
@@ -70,10 +69,9 @@ static const char *error_code_names[DRV_ERR_CODE_COUNT] = {
  */
 static uint8_t is_valid_source(error_source_t source)
 {
-    return ((source >= 0) && (source < ERROR_SOURCE_COUNT) &&
-               (source < ERROR_SOURCE_BIT_LIMIT))
-               ? 1
-               : 0;
+    uint8_t s = (uint8_t)source;
+
+    return (s < ERROR_SOURCE_COUNT) && (s < ERROR_SOURCE_BIT_LIMIT);
 }
 
 /**

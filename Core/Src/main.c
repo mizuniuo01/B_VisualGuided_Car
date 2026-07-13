@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "i2c.h"
 #include "iwdg.h"
 #include "tim.h"
@@ -40,6 +41,7 @@
 #include "pattern.h"
 #include "sensor.h"
 #include "ultrasonic.h"
+#include "display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -103,6 +105,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_TIM1_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
@@ -126,6 +129,8 @@ int main(void)
   while (1)
   {
     system_state();
+    blueteeth_task();
+    display_task();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -180,6 +185,35 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM6) {
+    static uint8_t system_led_cnt = 0;
+
+    display_refresh_flag = 1;
+    // 系统运行状态指示灯标志位
+    system_led_cnt++;
+    if (system_led_cnt >= 50) {
+      system_led_cnt = 0;
+      set_system_led_flag(1);
+    }
+
+  }
+}
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+  if (huart->Instance == USART1) {
+    blueteeth_rx_callback(huart, Size);
+  }
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1) {
+    blueteeth_tx_callback(huart);
+  }
+}
 
 /* USER CODE END 4 */
 

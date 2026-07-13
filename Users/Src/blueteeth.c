@@ -90,14 +90,19 @@
 
 #include "blueteeth.h"
 #include "error_handler.h"
+#include "system.h"
+#include "led.h"
 #include <stdio.h>
 #include <string.h>
 
 static blueteeth_handle_t blueteeth_inst;
 
+void on_led1_toggle_cmd(void) { led_toggle(system_led1()); }
+
 /* 蓝牙指令字典，按实际需求添加条目 */
 static const blueteeth_command_map_t cmd_table[] = {
     /* {"指令", 回调函数} */
+    {"led1_toggle",on_led1_toggle_cmd}
 };
 
 /* 指令表条目数 */

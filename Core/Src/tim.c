@@ -21,7 +21,7 @@
 #include "tim.h"
 
 /* USER CODE BEGIN 0 */
-#include "system.h"
+
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim1;
@@ -505,18 +505,5 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  if (htim->Instance == TIM6) {
-    static uint8_t system_led_cnt = 0;
 
-    // 系统运行状态指示灯标志位
-    system_led_cnt++;
-    if (system_led_cnt >= 50) {
-      system_led_cnt = 0;
-      set_system_led_flag(1);
-    }
-
-  }
-}
 /* USER CODE END 1 */

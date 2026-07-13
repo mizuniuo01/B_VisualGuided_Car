@@ -25,10 +25,12 @@
 
 #include "system.h"
 #include "gpio.h"
+#include "usart.h"
 #include "iwdg.h"
+#include "blueteeth.h"
 
 /* 系统运行标志位 */
-static uint8_t system_led_flag = 0;
+volatile static uint8_t system_led_flag = 0;
 
 /* 句柄实体（全部 static，外部不可直接访问） */
 static led_handle_t led1;
@@ -170,7 +172,7 @@ void system_init(void)
     buzzer_cfg_t buzzer_cfg = {.port = GPIOA, .pin = buzzer_Pin, .active_level = 1};
     buzzer_init(&buzzer, &buzzer_cfg);
 
-    /* 通信单实例（直接 init，不走句柄） */
-    /* blueteeth_init(UART_BLUETEETH_INST); */
+    /* 通信单实例 */
+    blueteeth_init(&huart1);
     /* oled_init(I2C_OLED_INST); */
 }
