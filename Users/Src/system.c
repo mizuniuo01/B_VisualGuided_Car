@@ -34,6 +34,7 @@
 #include "ultrasonic.h"
 #include "sensor.h"
 #include "pwm.h"
+#include "cam.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -193,6 +194,7 @@ void system_init(void)
     /* 通信单实例 */
     blueteeth_init(&huart1);
     gyro_init(&huart6);
+    cam_init(&huart3);
     /* oled_init(I2C_OLED_INST); */
 
     /* 驱动 / 执行器类 */

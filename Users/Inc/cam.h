@@ -37,9 +37,11 @@ typedef struct {
     uint16_t frame_index;                 /* 帧缓冲写入位置 */
 } cam_handle_t;
 
-/* 摄像头解析数据（根据实际数据格式定义） */
+/* 摄像头解析数据 */
 typedef struct {
-    uint8_t reserved[32];
+    uint8_t is_junction; /* 是否在路口：1=路口，0=正常 */
+    uint8_t direction;   /* 方向指令：0=直走，1=右转，2=左转 */
+    uint8_t green;       /* 绿灯标志：1=检测到绿灯，0=无 */
 } cam_data_t;
 
 /* 帧就绪标志位（收到完整帧时置 1，外部读取后手动清零） */

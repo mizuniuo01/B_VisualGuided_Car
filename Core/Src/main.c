@@ -129,8 +129,10 @@ int main(void)
   while (1)
   {
     system_state();
+    error_handler_task();
     gyro_task();
     ultrasonic_task(system_ultrasonic());
+    cam_task();
     sensor_task();
     blueteeth_task();
     display_task();
@@ -223,6 +225,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
   if (huart->Instance == USART1) {
     blueteeth_rx_callback(huart, Size);
+  }
+
+  if (huart->Instance == USART3) {
+    cam_rx_callback(huart, Size);
   }
 
   if (huart->Instance == USART6) {

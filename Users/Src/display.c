@@ -34,6 +34,7 @@
 #include "gyroscope.h"
 #include "ultrasonic.h"
 #include "sensor.h"
+#include "cam.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -78,6 +79,7 @@ void display_task(void)
     gyro_data_t gyro = gyro_get_data();
     ultrasonic_data_t ultra = ultrasonic_get_data();
     uint8_t sensor_data = sensor_read_data();
+    cam_data_t cam = cam_get_data();
     char sensor_str[30] = {0};
     for (int i = 0; i < 8; i++) {
         if (sensor_data & (1 << i)) {
@@ -99,4 +101,5 @@ void display_task(void)
     blueteeth_display(0, DISPLAY_LINE_3_Y, "Ultra: %.2f mm, valid=%d", ultra.distance_mm,
         ultra.is_valid);
     blueteeth_display(0, DISPLAY_LINE_4_Y, "Sensor: %s", sensor_str);
+    blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: %d, %d, %d", cam.is_junction, cam.direction, cam.green);
 }

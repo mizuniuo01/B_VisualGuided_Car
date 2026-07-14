@@ -146,7 +146,12 @@ void cam_task(void)
                         cam_inst.frame_buffer[cam_inst.frame_index] = '\0';
                     }
 
-                    /* 数据解析：根据实际数据格式填充 cam_data */
+                    /* 数据解析：[is_junction, direction, green] 共 3 字节 */
+                    if (cam_inst.frame_index == 3) {
+                        cam_data.is_junction = cam_inst.frame_buffer[0];
+                        cam_data.direction   = cam_inst.frame_buffer[1];
+                        cam_data.green       = cam_inst.frame_buffer[2];
+                    }
 
                     cam_frame_ready = 1;
                     cam_inst.rx_state = CAM_STATE_WAIT_HEADER;

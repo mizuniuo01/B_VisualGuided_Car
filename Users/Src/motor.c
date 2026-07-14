@@ -14,15 +14,15 @@
  * ─────────────────────────────────────────────────────────
  * 适配两路直流有刷电机 + 两片 DRV8874 驱动芯片。
  *
- * ── 硬件拓扑（DRV8874 IN/IN 模式）──
+ * ── 硬件拓扑（DRV8874 PH/EN 模式）──
  *
- *   MCU TIM CH3 ───────────→ DRV8874#1 IN1  (PWM)
- *   MCU GPIO L_PH_IN2 ────→ DRV8874#1 IN2  (方向)
+ *   MCU TIM CH3 ───────────→ DRV8874#1 EN  (PWM)
+ *   MCU GPIO L_PH_IN2 ────→ DRV8874#1 PH  (方向)
  *   MCU GPIO L_nSLEEP ────→ DRV8874#1 nSLEEP
  *   DRV8874#1 OUT1/OUT2 ──→ 左电机
  *
- *   MCU TIM CH4 ───────────→ DRV8874#2 IN1  (PWM)
- *   MCU GPIO R_PH_IN2 ────→ DRV8874#2 IN2  (方向)
+ *   MCU TIM CH4 ───────────→ DRV8874#2 EN  (PWM)
+ *   MCU GPIO R_PH_IN2 ────→ DRV8874#2 PH  (方向)
  *   MCU GPIO R_nSLEEP ────→ DRV8874#2 nSLEEP
  *   DRV8874#2 OUT1/OUT2 ──→ 右电机
  *
