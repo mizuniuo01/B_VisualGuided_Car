@@ -4,9 +4,9 @@
  * @author  mizuniuo01
  * @date    2026-05-25
  * @version 1.0.0
- * @note    左电机使用 PWM CH3，右电机使用 PWM CH4
+ * @note    左电机使用 PWM CH1（PA6），右电机使用 PWM CH2（PA7）
  * @note    左右电机方向引脚逻辑相反（机械安装方向导致）
- * @note    依赖：PWM 模块（pwm_set_compare_ch3/ch4）
+ * @note    依赖：PWM 模块（pwm_set_compare_ch1/ch2）
  * @warning 参数 speed 为直接 PWM 比较值，非物理速度
  * @note    参数非法时通过 error_report(ERROR_SOURCE_MOTOR, DRV_ERR_PARAM) 上报
  *
@@ -16,30 +16,31 @@
  *
  * ── 硬件拓扑（DRV8874 PH/EN 模式）──
  *
- *   MCU TIM CH3 ───────────→ DRV8874#1 EN  (PWM)
- *   MCU GPIO L_PH_IN2 ────→ DRV8874#1 PH  (方向)
- *   MCU GPIO L_nSLEEP ────→ DRV8874#1 nSLEEP
+ *   MCU TIM3 CH1 (PA6) ──→ DRV8874#1 EN  (PWM)
+ *   MCU GPIO dirl (PA5) ──→ DRV8874#1 PH  (方向)
+ *   MCU GPIO sleepl (PA4) → DRV8874#1 nSLEEP
  *   DRV8874#1 OUT1/OUT2 ──→ 左电机
  *
- *   MCU TIM CH4 ───────────→ DRV8874#2 EN  (PWM)
- *   MCU GPIO R_PH_IN2 ────→ DRV8874#2 PH  (方向)
- *   MCU GPIO R_nSLEEP ────→ DRV8874#2 nSLEEP
+ *   MCU TIM3 CH2 (PA7) ──→ DRV8874#2 EN  (PWM)
+ *   MCU GPIO dirr (PC4) ──→ DRV8874#2 PH  (方向)
+ *   MCU GPIO sleepr (PC5) → DRV8874#2 nSLEEP
  *   DRV8874#2 OUT1/OUT2 ──→ 右电机
  *
  * 左右电机机械对向安装，方向引脚逻辑相反：
- * - 左电机正向 = PH_IN2 置高
- * - 右电机正向 = PH_IN2 清零
+ * - 左电机正向 = PH2 置高
+ * - 右电机正向 = PH2 清零
  *
  * ── 初始化 ──
  *
  * static motor_handle_t motor;
  *
  * motor_cfg_t cfg = {
- *     .port         = GPIOE,
- *     .l_nsleep_pin = L_nSLEEP_Pin,
- *     .r_nsleep_pin = R_nSLEEP_Pin,
- *     .l_ph_in2_pin = L_PH_IN2_Pin,
- *     .r_ph_in2_pin = R_PH_IN2_Pin,
+ *     .l_port       = GPIOA,
+ *     .r_port       = GPIOC,
+ *     .l_nsleep_pin = sleepl_Pin,
+ *     .r_nsleep_pin = sleepr_Pin,
+ *     .l_ph_pin     = dirl_Pin,
+ *     .r_ph_pin     = dirr_Pin,
  * };
  * motor_init(&motor, &cfg);
  *
@@ -56,7 +57,7 @@
  *   encoder_get_left/right()  →  PID  →  motor_set_speed_left/right()
  *        ↑                                  │
  *   encoder_scan_left/right()               ↓
- *        ↑                          pwm_set_compare_ch3/ch4()
+ *        ↑                          pwm_set_compare_ch1/ch2()
  *   [QEI 编码器]                          ↓
  *                                  [DRV8874 → 电机]
  *
@@ -81,15 +82,16 @@ void motor_init(motor_handle_t *handle, const motor_cfg_t *cfg)
         return;
     }
 
-    handle->port = cfg->port;
+    handle->l_port = cfg->l_port;
+    handle->r_port = cfg->r_port;
     handle->l_nsleep_pin = cfg->l_nsleep_pin;
     handle->r_nsleep_pin = cfg->r_nsleep_pin;
-    handle->l_ph_in2_pin = cfg->l_ph_in2_pin;
-    handle->r_ph_in2_pin = cfg->r_ph_in2_pin;
+    handle->l_ph_pin = cfg->l_ph_pin;
+    handle->r_ph_pin = cfg->r_ph_pin;
 
     /* 拉高 nSLEEP 使驱动芯片脱离待机模式 */
-    HAL_GPIO_WritePin(handle->port, handle->l_nsleep_pin, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(handle->port, handle->r_nsleep_pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(handle->l_port, handle->l_nsleep_pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(handle->r_port, handle->r_nsleep_pin, GPIO_PIN_SET);
 }
 
 /**
@@ -114,12 +116,12 @@ void motor_set_speed_left(motor_handle_t *handle, TIM_HandleTypeDef *htim, int16
         }
 
         if (speed < MOTOR_EFFECTIVE_MIN_SPEED) {
-            pwm_set_compare_ch3(htim, 0);
+            pwm_set_compare_ch1(htim, 0);
             return;
         }
 
-        HAL_GPIO_WritePin(handle->port, handle->l_ph_in2_pin, GPIO_PIN_SET);
-        pwm_set_compare_ch3(htim, (uint16_t)speed);
+        HAL_GPIO_WritePin(handle->l_port, handle->l_ph_pin, GPIO_PIN_SET);
+        pwm_set_compare_ch1(htim, (uint16_t)speed);
     } else {
         temp = -speed;
         if (temp > MOTOR_MAX_SPEED) {
@@ -127,12 +129,12 @@ void motor_set_speed_left(motor_handle_t *handle, TIM_HandleTypeDef *htim, int16
         }
 
         if (temp < MOTOR_EFFECTIVE_MIN_SPEED) {
-            pwm_set_compare_ch3(htim, 0);
+            pwm_set_compare_ch1(htim, 0);
             return;
         }
 
-        HAL_GPIO_WritePin(handle->port, handle->l_ph_in2_pin, GPIO_PIN_RESET);
-        pwm_set_compare_ch3(htim, (uint16_t)temp);
+        HAL_GPIO_WritePin(handle->l_port, handle->l_ph_pin, GPIO_PIN_RESET);
+        pwm_set_compare_ch1(htim, (uint16_t)temp);
     }
 }
 
@@ -159,12 +161,12 @@ void motor_set_speed_right(motor_handle_t *handle, TIM_HandleTypeDef *htim, int1
         }
 
         if (speed < MOTOR_EFFECTIVE_MIN_SPEED) {
-            pwm_set_compare_ch4(htim, 0);
+            pwm_set_compare_ch2(htim, 0);
             return;
         }
 
-        HAL_GPIO_WritePin(handle->port, handle->r_ph_in2_pin, GPIO_PIN_RESET);
-        pwm_set_compare_ch4(htim, (uint16_t)speed);
+        HAL_GPIO_WritePin(handle->r_port, handle->r_ph_pin, GPIO_PIN_RESET);
+        pwm_set_compare_ch2(htim, (uint16_t)speed);
     } else {
         temp = -speed;
         if (temp > MOTOR_MAX_SPEED) {
@@ -172,11 +174,11 @@ void motor_set_speed_right(motor_handle_t *handle, TIM_HandleTypeDef *htim, int1
         }
 
         if (temp < MOTOR_EFFECTIVE_MIN_SPEED) {
-            pwm_set_compare_ch4(htim, 0);
+            pwm_set_compare_ch2(htim, 0);
             return;
         }
 
-        HAL_GPIO_WritePin(handle->port, handle->r_ph_in2_pin, GPIO_PIN_SET);
-        pwm_set_compare_ch4(htim, (uint16_t)temp);
+        HAL_GPIO_WritePin(handle->r_port, handle->r_ph_pin, GPIO_PIN_SET);
+        pwm_set_compare_ch2(htim, (uint16_t)temp);
     }
 }

@@ -196,8 +196,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     static uint8_t system_led_cnt = 0;
     static uint8_t gyro_tick_cnt = 0;
     static uint8_t sensor_tick_cnt = 0;
+    static uint8_t encoder_tick_cnt = 0;
+    static uint8_t display_tick_cnt = 0;
 
-    display_refresh_flag = 1;
+
     /* 系统运行状态指示灯标志位 */
     system_led_cnt++;
     if (system_led_cnt >= 50) {
@@ -217,6 +219,21 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (sensor_tick_cnt >= 3) {
       sensor_tick_cnt = 0;
       sensor_tick_flag = 1;
+    }
+
+    /* 编码器10ms周期扫描 */
+    encoder_tick_cnt++;
+    if (encoder_tick_cnt >= 10) {
+      encoder_tick_cnt = 0;
+      encoder_scan_left(&htim2);
+      encoder_scan_right(&htim1);
+    }
+
+    /* 打印刷新标志位 */
+    display_tick_cnt++;
+    if (display_tick_cnt >= 10) {
+      display_tick_cnt = 0;
+      display_refresh_flag = 1;
     }
   }
 }

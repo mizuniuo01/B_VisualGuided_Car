@@ -5,7 +5,7 @@
  * @date    2026-05-25
  * @version 1.0.0
  * @note    依赖：PWM 定时器已在 CubeMX 中配置
- * @note    使用 CH3/CH4 通道，适配 STM32 通用/高级定时器
+ * @note    使用 CH1/CH2 通道，适配 STM32 通用定时器
  * @note    高级定时器（TIM1/TIM8）额外使能 MOE 主输出
  * @note    参数非法时通过 error_report(ERROR_SOURCE_PWM, DRV_ERR_PARAM) 上报
  *
@@ -20,11 +20,11 @@
  *
  * ── 初始化 ──
  *
- * pwm_init(&htim1);  // 启动 CH3/CH4 PWM 输出
+ * pwm_init(&htim1);  // 启动 CH1/CH2 PWM 输出
  *
  * ── motor 模块调用 ──
  *
- * pwm_set_compare_ch3(&htim1, 4200);  // 50% 占空比
+ * pwm_set_compare_ch1(&htim1, 4200);  // 50% 占空比
  */
 
 #include "pwm.h"
@@ -48,12 +48,12 @@ void pwm_init(TIM_HandleTypeDef *htim)
 }
 
 /**
- * @brief  设置 PWM 通道 3 的比较值（占空比）
+ * @brief  设置 PWM 通道 1 的比较值（占空比）
  * @param  htim     定时器句柄指针
  * @param  compare  比较值（0~PWM_MAX_COMPARE），超限自动钳位
  * @retval 无
  */
-void pwm_set_compare_ch3(TIM_HandleTypeDef *htim, uint16_t compare)
+void pwm_set_compare_ch1(TIM_HandleTypeDef *htim, uint16_t compare)
 {
     if (!htim) {
         error_report(ERROR_SOURCE_PWM, DRV_ERR_PARAM);
@@ -68,12 +68,12 @@ void pwm_set_compare_ch3(TIM_HandleTypeDef *htim, uint16_t compare)
 }
 
 /**
- * @brief  设置 PWM 通道 4 的比较值（占空比）
+ * @brief  设置 PWM 通道 2 的比较值（占空比）
  * @param  htim     定时器句柄指针
  * @param  compare  比较值（0~PWM_MAX_COMPARE），超限自动钳位
  * @retval 无
  */
-void pwm_set_compare_ch4(TIM_HandleTypeDef *htim, uint16_t compare)
+void pwm_set_compare_ch2(TIM_HandleTypeDef *htim, uint16_t compare)
 {
     if (!htim) {
         error_report(ERROR_SOURCE_PWM, DRV_ERR_PARAM);

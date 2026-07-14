@@ -35,6 +35,7 @@
 #include "ultrasonic.h"
 #include "sensor.h"
 #include "cam.h"
+#include "encoder.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -80,6 +81,8 @@ void display_task(void)
     ultrasonic_data_t ultra = ultrasonic_get_data();
     uint8_t sensor_data = sensor_read_data();
     cam_data_t cam = cam_get_data();
+    int16_t encoder_left = encoder_get_left();
+    int16_t encoder_right = encoder_get_right();
     char sensor_str[30] = {0};
     for (int i = 0; i < 8; i++) {
         if (sensor_data & (1 << i)) {
@@ -102,4 +105,5 @@ void display_task(void)
         ultra.is_valid);
     blueteeth_display(0, DISPLAY_LINE_4_Y, "Sensor: %s", sensor_str);
     blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: %d, %d, %d", cam.is_junction, cam.direction, cam.green);
+    blueteeth_display(0, DISPLAY_LINE_6_Y, "Encoder: L=%d, R=%d", encoder_left, encoder_right);
 }

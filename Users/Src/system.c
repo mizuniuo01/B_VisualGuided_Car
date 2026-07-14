@@ -35,6 +35,8 @@
 #include "sensor.h"
 #include "pwm.h"
 #include "cam.h"
+#include "motor.h"
+#include "encoder.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -46,8 +48,7 @@ static led_handle_t led3;
 static led_handle_t led4;
 static buzzer_handle_t buzzer;
 static ultrasonic_handle_t ultra;
-static motor_handle_t motor_left;
-static motor_handle_t motor_right;
+static motor_handle_t motor;
 /*static pid_controller_t pid_speed_left;
 static pid_controller_t pid_speed_right;*/
 
@@ -83,15 +84,11 @@ ultrasonic_handle_t *system_ultrasonic(void)
     return &ultra;
 }
 
-motor_handle_t *system_motor_left(void)
+motor_handle_t *system_motor(void)
 {
-    return &motor_left;
+    return &motor;
 }
 
-motor_handle_t *system_motor_right(void)
-{
-    return &motor_right;
-}
 /*
 pid_controller_t *system_pid_speed_left(void)
 {
@@ -191,6 +188,16 @@ void system_init(void)
     };
     ultrasonic_init(&ultra, &ultra_cfg, &htim4);
 
+    motor_cfg_t motor_cfg = {
+        .l_port = GPIOA,
+        .r_port = GPIOC,
+        .l_nsleep_pin = sleepl_Pin,
+        .r_nsleep_pin = sleepr_Pin,
+        .l_ph_pin = dirl_Pin,
+        .r_ph_pin = dirr_Pin,
+    };
+    motor_init(&motor, &motor_cfg);
+
     /* 通信单实例 */
     blueteeth_init(&huart1);
     gyro_init(&huart6);
@@ -200,4 +207,5 @@ void system_init(void)
     /* 驱动 / 执行器类 */
     sensor_init(&hi2c2);
     pwm_init(&htim3);
+    encoder_init(&htim2, &htim1);
 }

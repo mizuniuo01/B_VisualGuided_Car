@@ -12,7 +12,7 @@
 #define PWM_MAX_COMPARE 8400 /* 定时器 ARR 值，决定 PWM 分辨率 */
 
 void pwm_init(TIM_HandleTypeDef *htim);
-void pwm_set_compare_ch3(TIM_HandleTypeDef *htim, uint16_t compare);
-void pwm_set_compare_ch4(TIM_HandleTypeDef *htim, uint16_t compare);
+void pwm_set_compare_ch1(TIM_HandleTypeDef *htim, uint16_t compare);
+void pwm_set_compare_ch2(TIM_HandleTypeDef *htim, uint16_t compare);
 
 #endif

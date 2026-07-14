@@ -19,8 +19,7 @@ buzzer_handle_t *system_buzzer(void);
 ultrasonic_handle_t *system_ultrasonic(void);
 
 /* 驱动 / 执行器类 */
-motor_handle_t *system_motor_left(void);
-motor_handle_t *system_motor_right(void);
+motor_handle_t *system_motor(void);
 
 /* 算法类 */
 //pid_controller_t *system_pid_speed_left(void);
