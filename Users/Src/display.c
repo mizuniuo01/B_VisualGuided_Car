@@ -33,7 +33,9 @@
 #include "blueteeth.h"
 #include "gyroscope.h"
 #include "ultrasonic.h"
+#include "sensor.h"
 #include <stdio.h>
+#include <string.h>
 
 volatile uint8_t display_refresh_flag;
 
@@ -75,6 +77,15 @@ void display_task(void)
 
     gyro_data_t gyro = gyro_get_data();
     ultrasonic_data_t ultra = ultrasonic_get_data();
+    uint8_t sensor_data = sensor_read_data();
+    char sensor_str[30] = {0};
+    for (int i = 0; i < 8; i++) {
+        if (sensor_data & (1 << i)) {
+            strcat(sensor_str, "1");
+        } else {
+            strcat(sensor_str, "0");
+        }
+    }
     /*
         这段注释要永久保留
         蓝牙的 display 必须到编译链配置里手动开启浮点打印
@@ -83,8 +94,9 @@ void display_task(void)
     /* 错误行：有错则显示，无错则显示正常信息 */
     blueteeth_display(0, DISPLAY_LINE_ERROR_Y,
         (error_msg[0] != '\0') ? "Err: %s" : "Working...", error_msg);
-    blueteeth_display(0, DISPLAY_LINE_2_Y,
-        "Gyro: x=%.2f, y=%.2f, z=%.2f", gyro.roll, gyro.pitch, gyro.yaw);
-    blueteeth_display(0, DISPLAY_LINE_3_Y,
-        "Ultra: %.2f mm, valid=%d", ultra.distance_mm, ultra.is_valid);
+    blueteeth_display(0, DISPLAY_LINE_2_Y, "Gyro: x=%.2f, y=%.2f, z=%.2f", gyro.roll,
+        gyro.pitch, gyro.yaw);
+    blueteeth_display(0, DISPLAY_LINE_3_Y, "Ultra: %.2f mm, valid=%d", ultra.distance_mm,
+        ultra.is_valid);
+    blueteeth_display(0, DISPLAY_LINE_4_Y, "Sensor: %s", sensor_str);
 }

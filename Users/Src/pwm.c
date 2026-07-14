@@ -43,14 +43,8 @@ void pwm_init(TIM_HandleTypeDef *htim)
         return;
     }
 
-    HAL_TIM_PWM_Start(htim, TIM_CHANNEL_3);
-    HAL_TIM_PWM_Start(htim, TIM_CHANNEL_4);
-
-    /* 高级定时器（TIM1/TIM8）需使能 MOE 主输出 */
-    if (htim->Instance == TIM1) {
-        HAL_TIMEx_PWMN_Start(htim, TIM_CHANNEL_3);
-        __HAL_TIM_MOE_ENABLE(htim);
-    }
+    HAL_TIM_PWM_Start(htim, TIM_CHANNEL_1);
+    HAL_TIM_PWM_Start(htim, TIM_CHANNEL_2);
 }
 
 /**
@@ -70,7 +64,7 @@ void pwm_set_compare_ch3(TIM_HandleTypeDef *htim, uint16_t compare)
         compare = PWM_MAX_COMPARE;
     }
 
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_3, compare);
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_1, compare);
 }
 
 /**
@@ -90,5 +84,5 @@ void pwm_set_compare_ch4(TIM_HandleTypeDef *htim, uint16_t compare)
         compare = PWM_MAX_COMPARE;
     }
 
-    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_4, compare);
+    __HAL_TIM_SET_COMPARE(htim, TIM_CHANNEL_2, compare);
 }

@@ -131,6 +131,7 @@ int main(void)
     system_state();
     gyro_task();
     ultrasonic_task(system_ultrasonic());
+    sensor_task();
     blueteeth_task();
     display_task();
     /* USER CODE END WHILE */
@@ -191,20 +192,29 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Instance == TIM6) {
     static uint8_t system_led_cnt = 0;
-    static uint8_t gyro_cnt = 0;
+    static uint8_t gyro_tick_cnt = 0;
+    static uint8_t sensor_tick_cnt = 0;
 
     display_refresh_flag = 1;
-    // 系统运行状态指示灯标志位
+    /* 系统运行状态指示灯标志位 */
     system_led_cnt++;
     if (system_led_cnt >= 50) {
       system_led_cnt = 0;
       set_system_led_flag(1);
     }
 
-    gyro_cnt++;
-    if (gyro_cnt >= 1) {
-      gyro_cnt = 0;
+    /* 陀螺仪数据服务标志位 */
+    gyro_tick_cnt++;
+    if (gyro_tick_cnt >= 1) {
+      gyro_tick_cnt = 0;
       gyro_tick_flag = 1;
+    }
+
+    /* 传感器数据服务标志位 */
+    sensor_tick_cnt++;
+    if (sensor_tick_cnt >= 3) {
+      sensor_tick_cnt = 0;
+      sensor_tick_flag = 1;
     }
   }
 }
@@ -231,6 +241,20 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART6) {
     gyro_error_callback(huart);
+  }
+}
+
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+  if (hi2c->Instance == I2C2) {
+    sensor_rx_callback(hi2c);
+  }
+}
+
+void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c)
+{
+  if (hi2c->Instance == I2C2) {
+    sensor_error_callback(hi2c);
   }
 }
 

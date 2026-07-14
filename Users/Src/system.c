@@ -26,11 +26,14 @@
 #include "system.h"
 #include "gpio.h"
 #include "usart.h"
+#include "i2c.h"
 #include "tim.h"
 #include "iwdg.h"
 #include "blueteeth.h"
 #include "gyroscope.h"
 #include "ultrasonic.h"
+#include "sensor.h"
+#include "pwm.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -191,4 +194,8 @@ void system_init(void)
     blueteeth_init(&huart1);
     gyro_init(&huart6);
     /* oled_init(I2C_OLED_INST); */
+
+    /* 驱动 / 执行器类 */
+    sensor_init(&hi2c2);
+    pwm_init(&htim3);
 }
