@@ -148,8 +148,7 @@ void motion_manager_start_move(int16_t distance_mm, int16_t speed)
 
     motion_control_set_base_speed(speed);
     motion_control_set_diff(0);
-    motion_control_enable_angle(0);
-    pid_clear(system_pid_angle());
+    motion_control_enable_angle(1);
 
     state = MOTION_MANAGER_STATE_MOVE;
 }
