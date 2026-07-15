@@ -17,6 +17,8 @@
 #include "gyroscope.h"
 #include "system.h"
 
+#define BLACK_LINE_COOLDOWN_MM 500 /* 黑线冷却距离 50cm */
+
 volatile uint8_t control_manager_tick_flag = 0;
 
 /* 参数结构体（保留，bt_command 使用） */
@@ -38,7 +40,9 @@ static control_run_substate_t  substate;
 static uint8_t last_direction; /* 最新有效方向（每 tick 更新） */
 
 /* 黑线边缘检测 */
-static uint8_t prev_all_black_flag; /* 上一 tick 的黑线状态 */
+static uint8_t prev_all_black_flag;        /* 上一 tick 的黑线状态 */
+static uint8_t black_line_cooldown_active; /* 黑线冷却激活 */
+static int16_t black_line_cooldown_start_mm; /* 冷却起点已走距离 */
 
 /* 启动延迟标志（障碍物恢复后下一 tick 启动运动） */
 static uint8_t move_pending_start;
@@ -79,6 +83,8 @@ void control_manager_init(void)
     substate = CONTROL_RUN_MOVE;
     last_direction = 0;
     prev_all_black_flag = 0;
+    black_line_cooldown_active = 0;
+    black_line_cooldown_start_mm = 0;
     move_pending_start = 0;
     turn_pending_start = 0;
     obstacle_active = 0;
@@ -120,9 +126,6 @@ void control_manager_task(void)
     /* 3. 障碍物处理（最高优先级——上升沿保存+停车，下降沿恢复） */
     if (pd->obstacle_flag) {
         if (!obstacle_active) {
-            /* 同步黑线边缘检测，防止障碍物清除后虚假上升沿 */
-            prev_all_black_flag = pd->all_black_flag;
-
             /* 保存上下文 */
             pre_obstacle_substate  = substate;
             pre_obstacle_direction = last_direction;
@@ -186,19 +189,40 @@ void control_manager_task(void)
                 /* 启动延迟处理（障碍物恢复后首次进入） */
                 if (move_pending_start) {
                     move_pending_start = 0;
+                    black_line_cooldown_active = 0;
                     motion_manager_start_move(saved_remaining_mm,
                         plan_params.speed);
                     break;
                 }
 
-                /* 黑线上升沿检测 */
+                /* 黑线冷却进度更新 */
+                if (black_line_cooldown_active) {
+                    int16_t elapsed =
+                        motion_manager_get_elapsed_mm();
+                    if (elapsed >= black_line_cooldown_start_mm) {
+                        if (elapsed - black_line_cooldown_start_mm
+                            >= BLACK_LINE_COOLDOWN_MM) {
+                            black_line_cooldown_active = 0;
+                        }
+                    }
+                    /* elapsed < cooldown_start: move 被重启过，
+                       保持在冷却期内 */
+                }
+
+                /* 黑线上升沿检测（冷却期内跳过） */
                 if (pd->all_black_flag && !prev_all_black_flag) {
                     prev_all_black_flag = 1;
-                    if (motion_manager_get_state()
+                    if (!black_line_cooldown_active
+                        && motion_manager_get_state()
                         == MOTION_MANAGER_STATE_MOVE) {
                         saved_remaining_mm =
                             motion_manager_get_remaining_mm();
                         if (saved_remaining_mm > 0) {
+                            /* 激活冷却：记录触发点已走距离 */
+                            black_line_cooldown_active = 1;
+                            black_line_cooldown_start_mm =
+                                motion_manager_get_elapsed_mm();
+
                             if (pd->green) {
                                 /* 绿灯：无缝继续剩余距离 */
                                 motion_manager_replan_remaining_mm(
@@ -221,6 +245,7 @@ void control_manager_task(void)
                 /* 距离规划完成检测 */
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
+                    black_line_cooldown_active = 0;
                     if (last_direction == 1 || last_direction == 2) {
                         /* 左转或右转 */
                         motion_manager_start_rotate(
@@ -251,6 +276,7 @@ void control_manager_task(void)
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
                     /* 旋转完成，开始前进 */
+                    black_line_cooldown_active = 0;
                     saved_remaining_mm = plan_params.distance_mm;
                     move_pending_start = 1;
                     substate = CONTROL_RUN_MOVE;
@@ -311,6 +337,8 @@ void control_manager_set_running(uint8_t run)
             substate = CONTROL_RUN_MOVE;
             last_direction = 0;
             prev_all_black_flag = 0;
+            black_line_cooldown_active = 0;
+            black_line_cooldown_start_mm = 0;
             move_pending_start = 0;
             turn_pending_start = 0;
             obstacle_active = 0;
