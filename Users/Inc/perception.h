@@ -8,7 +8,6 @@
 #define OBSTACLE_THRESH_MM 100.0f  /* 障碍物距离阈值（mm） */
 
 typedef struct {
-    uint8_t junction_flag;  /* 1: 是路口, 0: 不是路口 */
     uint8_t direction;      /* 0: 直行, 1: 右转, 2: 左转 */
     uint8_t green;          /* 1: 绿灯, 0: 非绿灯 */
     int16_t diff;           /* 视觉偏差值，单位像素，正数表示偏左，负数表示偏右 */

@@ -129,15 +129,13 @@ void display_task(void)
         np->base_speed, target_angle, perception->diff, np->angle_enable);
     blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s/%s dist=%d ang=%.0f spd=%d",
         (control_manager_get_state() == CONTROL_MANAGER_STATE_STOP) ? "STOP" : "RUN",
-        (control_manager_get_substate() == CONTROL_RUN_NORMAL)            ? "NORM"
-        : (control_manager_get_substate() == CONTROL_RUN_JUNCTION_MOVE)   ? "JMOVE"
-        : (control_manager_get_substate() == CONTROL_RUN_JUNCTION_ROTATE) ? "JROT"
-        : (control_manager_get_substate() == CONTROL_RUN_WAIT_GREEN)      ? "WAITG"
+        (control_manager_get_substate() == CONTROL_RUN_MOVE)             ? "MOVE"
+        : (control_manager_get_substate() == CONTROL_RUN_TURN)           ? "TURN"
+        : (control_manager_get_substate() == CONTROL_RUN_BLACK_LINE_WAIT) ? "WAITG"
                                                                           : "???",
         pp->distance_mm, pp->delta_deg, pp->speed);
     blueteeth_display(0, DISPLAY_LINE_11_Y,
-        "Percep: J=%d D=%d G=%d diff=%d all_b=%d obs=%d ff=%.1f",
-        perception->junction_flag, perception->direction, perception->green,
-        perception->diff, perception->all_black_flag, perception->obstacle_flag,
-        perception_get_feedforward());
+        "Percep: D=%d G=%d all_b=%d obs=%d",
+        perception->direction, perception->green,
+        perception->all_black_flag, perception->obstacle_flag);
 }

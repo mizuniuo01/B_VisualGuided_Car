@@ -38,4 +38,10 @@ void motion_manager_start_rotate(float delta_deg, int16_t speed);
 /* 查询当前状态 */
 motion_manager_state_t motion_manager_get_state(void);
 
+/* 距离规划辅助 */
+int16_t motion_manager_get_elapsed_mm(void);
+int16_t motion_manager_get_remaining_mm(void);
+void motion_manager_cancel(void);
+void motion_manager_replan_remaining_mm(int16_t remaining_mm);
+
 #endif

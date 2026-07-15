@@ -257,3 +257,78 @@ motion_manager_state_t motion_manager_get_state(void)
 {
     return state;
 }
+
+/**
+ * @brief  获取当前距离规划已走距离
+ * @param  无
+ * @retval 已走距离（mm），非 MOVE 状态返回 0
+ */
+int16_t motion_manager_get_elapsed_mm(void)
+{
+    if (state != MOTION_MANAGER_STATE_MOVE) {
+        return 0;
+    }
+    return (int16_t)(accumulated_counts / COUNTS_PER_MM);
+}
+
+/**
+ * @brief  获取当前距离规划剩余距离
+ * @param  无
+ * @retval 剩余距离（mm），非 MOVE 状态返回 0
+ */
+int16_t motion_manager_get_remaining_mm(void)
+{
+    float remaining;
+
+    if (state != MOTION_MANAGER_STATE_MOVE) {
+        return 0;
+    }
+    remaining = (target_total_counts - accumulated_counts) / COUNTS_PER_MM;
+    if (remaining < 0.0f) {
+        remaining = 0.0f;
+    }
+    return (int16_t)remaining;
+}
+
+/**
+ * @brief  取消当前运动规划，立即停车
+ * @note   清除速度 PID，速度归零，diff 归零，返回 NORMAL 状态
+ * @param  无
+ * @retval 无
+ */
+void motion_manager_cancel(void)
+{
+    if (state == MOTION_MANAGER_STATE_NORMAL) {
+        return;
+    }
+
+    pid_clear(system_pid_speed_left());
+    pid_clear(system_pid_speed_right());
+    motion_control_set_base_speed(0);
+    motion_control_set_diff(0);
+    normal_base_speed = 0;
+    normal_external_diff = 0;
+    state = MOTION_MANAGER_STATE_NORMAL;
+}
+
+/**
+ * @brief  保持当前速度，调整剩余目标距离
+ * @note   仅在 MOVE 状态下有效，不改变速度，仅调整目标计数
+ * @param  remaining_mm  新的剩余距离（mm）
+ * @retval 无
+ */
+void motion_manager_replan_remaining_mm(int16_t remaining_mm)
+{
+    float remaining_counts;
+
+    if (state != MOTION_MANAGER_STATE_MOVE) {
+        return;
+    }
+    if (remaining_mm <= 0) {
+        return;
+    }
+
+    remaining_counts = (float)remaining_mm * COUNTS_PER_MM;
+    target_total_counts = accumulated_counts + remaining_counts;
+    plan_distance_mm = remaining_mm;
+}

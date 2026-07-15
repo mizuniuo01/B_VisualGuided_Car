@@ -2,12 +2,12 @@
  * @file    control_manager.c
  * @brief   顶层控制调度（状态机 + 任务集成）
  * @author  mizuniuo01
- * @date    2026-07-15
- * @version 1.0.0
+ * @date    2026-07-16
+ * @version 2.0.0
  * @note    10ms tick，内部调用 perception → 状态机 → motion_manager → motion_control
+ * @note    控制方案：固定距离分段 (70cm) + 方向驱动循环
  * @note    障碍物为最高优先级，检测到立即停车并响蜂鸣器
- * @note    路口动作由 junction_flag + direction 触发
- * @note    绿灯场景需等 all_black 后才执行路口动作（距离缩减 10cm）
+ * @note    黑线 + 红绿灯：黑线处记录剩余距离，绿灯直行 / 红灯等待
  */
 
 #include "control_manager.h"
@@ -19,48 +19,51 @@
 
 volatile uint8_t control_manager_tick_flag = 0;
 
+/* 参数结构体（保留，bt_command 使用） */
 static control_normal_params_t normal_params = {
-    .base_speed   = 15,
+    .base_speed   = CONTROL_DEFAULT_SPEED,
     .angle_enable = 1,
 };
 static control_plan_params_t plan_params = {
-    .distance_mm = 100,
+    .distance_mm = CONTROL_SEGMENT_DISTANCE_MM,
     .delta_deg   = 90.0f,
-    .speed       = 15,
+    .speed       = CONTROL_DEFAULT_SPEED,
 };
 
+/* 顶层状态 */
 static control_manager_state_t state;
 static control_run_substate_t  substate;
 
-/* 路口逻辑 */
-static uint8_t junction_pending;
-static uint8_t saved_junction_direction;
+/* 方向追踪 */
+static uint8_t last_direction; /* 最新有效方向（每 tick 更新） */
 
-/* 障碍物 */
-static uint8_t obstacle_active;
-static control_manager_state_t pre_obstacle_state;
-static control_run_substate_t  pre_obstacle_substate;
+/* 黑线边缘检测 */
+static uint8_t prev_all_black_flag; /* 上一 tick 的黑线状态 */
+
+/* 启动延迟标志（障碍物恢复后下一 tick 启动运动） */
+static uint8_t move_pending_start;
+static uint8_t turn_pending_start;
+
+/* 障碍物上下文保存 */
+static uint8_t                obstacle_active;
+static control_run_substate_t pre_obstacle_substate;
+static int16_t                pre_obstacle_remaining_mm;
+static uint8_t                pre_obstacle_direction;
+
+/* 黑线等待上下文 */
+static int16_t saved_remaining_mm;
 
 /**
- * @brief  执行路口动作（发起距离移动规划）
- * @param  direction       路口方向（0=直行, 1=右转, 2=左转）
- * @param  green_scenario  是否为绿灯场景（距离缩减 10cm）
- * @retval 无
+ * @brief  根据方向获取旋转角度
+ * @param  direction  方向（1=右转, 2=左转）
+ * @retval 旋转角度（度）
  */
-static void execute_junction(uint8_t direction, uint8_t green_scenario)
+static float get_turn_angle(uint8_t direction)
 {
-    int16_t dist;
-
-    dist = (direction == 0) ? JUNCTION_DIST_STRAIGHT_MM : JUNCTION_DIST_TURN_MM;
-    if (green_scenario) {
-        dist -= JUNCTION_DIST_GREEN_REDUCE;
-        if (dist < 0) {
-            dist = 0;
-        }
+    if (direction == 1) {
+        return CONTROL_TURN_ANGLE_RIGHT_DEG;
     }
-
-    motion_manager_start_move(dist, plan_params.speed);
-    substate = CONTROL_RUN_JUNCTION_MOVE;
+    return CONTROL_TURN_ANGLE_LEFT_DEG;
 }
 
 /**
@@ -73,10 +76,16 @@ void control_manager_init(void)
     gyro_data_t gyro;
 
     state = CONTROL_MANAGER_STATE_STOP;
-    substate = CONTROL_RUN_NORMAL;
-    junction_pending = 0;
-    saved_junction_direction = 0;
+    substate = CONTROL_RUN_MOVE;
+    last_direction = 0;
+    prev_all_black_flag = 0;
+    move_pending_start = 0;
+    turn_pending_start = 0;
     obstacle_active = 0;
+    pre_obstacle_substate = CONTROL_RUN_MOVE;
+    pre_obstacle_remaining_mm = 0;
+    pre_obstacle_direction = 0;
+    saved_remaining_mm = 0;
 
     gyro = gyro_get_data();
     *motion_control_get_target_angle_ptr() = gyro.yaw;
@@ -93,8 +102,6 @@ void control_manager_init(void)
 void control_manager_task(void)
 {
     perception_data_t *pd;
-    float *target_angle_ptr;
-    float current_angle;
 
     if (!control_manager_tick_flag) {
         return;
@@ -105,11 +112,32 @@ void control_manager_task(void)
     perception_task();
     pd = perception_get_data();
 
-    /* 2. 障碍物处理（最高优先级——上升沿停车+蜂鸣器，下降沿恢复） */
+    /* 2. 方向追踪（每 tick 更新，direction=3 无效时保持上次值） */
+    if (pd->direction != 3) {
+        last_direction = pd->direction;
+    }
+
+    /* 3. 障碍物处理（最高优先级——上升沿保存+停车，下降沿恢复） */
     if (pd->obstacle_flag) {
         if (!obstacle_active) {
-            pre_obstacle_state    = state;
-            pre_obstacle_substate = substate;
+            /* 同步黑线边缘检测，防止障碍物清除后虚假上升沿 */
+            prev_all_black_flag = pd->all_black_flag;
+
+            /* 保存上下文 */
+            pre_obstacle_substate  = substate;
+            pre_obstacle_direction = last_direction;
+
+            if (substate == CONTROL_RUN_MOVE) {
+                pre_obstacle_remaining_mm = motion_manager_get_remaining_mm();
+                if (pre_obstacle_remaining_mm <= 0) {
+                    pre_obstacle_remaining_mm = plan_params.distance_mm;
+                }
+                motion_manager_cancel();
+            } else if (substate == CONTROL_RUN_TURN) {
+                motion_manager_cancel();
+            }
+            /* BLACK_LINE_WAIT：已停车，无需取消运动 */
+
             motion_control_set_base_speed(0);
             motion_control_set_diff(0);
             motion_control_enable_angle(1);
@@ -119,84 +147,132 @@ void control_manager_task(void)
     } else {
         if (obstacle_active) {
             buzzer_off(system_buzzer());
-            state    = pre_obstacle_state;
+
+            /* 恢复上下文 */
             substate = pre_obstacle_substate;
+
+            if (substate == CONTROL_RUN_MOVE) {
+                if (pre_obstacle_remaining_mm > 0) {
+                    saved_remaining_mm = pre_obstacle_remaining_mm;
+                } else {
+                    saved_remaining_mm = plan_params.distance_mm;
+                }
+                move_pending_start = 1;
+            } else if (substate == CONTROL_RUN_TURN) {
+                /* 重置目标角度为当前 yaw，避免二次旋转 */
+                float cur_yaw = gyro_get_data().yaw;
+                *motion_control_get_target_angle_ptr() = cur_yaw;
+                motion_control_set_angle(cur_yaw);
+                turn_pending_start = 1;
+            }
+            /* BLACK_LINE_WAIT：无需操作，继续等待绿灯 */
+
             obstacle_active = 0;
         }
     }
 
-    /* 3. 状态机推进（障碍物激活时跳过） */
+    /* 4. 状态机推进（障碍物激活时跳过） */
     if (!obstacle_active) {
-        target_angle_ptr = motion_control_get_target_angle_ptr();
-        current_angle    = *target_angle_ptr;
-
         switch (state) {
         case CONTROL_MANAGER_STATE_STOP:
-            motion_manager_set_normal(0, current_angle, 0, 1);
+            motion_control_set_base_speed(0);
+            motion_control_set_diff(0);
+            motion_control_enable_angle(1);
             break;
 
         case CONTROL_MANAGER_STATE_RUNNING:
             switch (substate) {
-            case CONTROL_RUN_NORMAL:
-                /* 路口上升沿检测 */
-                if (pd->junction_flag && !junction_pending) {
-                    saved_junction_direction = pd->direction;
-                    if (!pd->green) {
-                        execute_junction(saved_junction_direction, 0);
-                    } else {
-                        junction_pending = 1;
-                    }
+            case CONTROL_RUN_MOVE:
+                /* 启动延迟处理（障碍物恢复后首次进入） */
+                if (move_pending_start) {
+                    move_pending_start = 0;
+                    motion_manager_start_move(saved_remaining_mm,
+                        plan_params.speed);
+                    break;
                 }
 
-                /* all_black 触发绿灯场景的路口动作 */
-                if (junction_pending && pd->all_black_flag) {
-                    junction_pending = 0;
-                    if (pd->green) {
-                        execute_junction(saved_junction_direction, 1);
-                    } else {
-                        motion_manager_set_normal(0, current_angle, 0, 1);
-                        substate = CONTROL_RUN_WAIT_GREEN;
+                /* 黑线上升沿检测 */
+                if (pd->all_black_flag && !prev_all_black_flag) {
+                    prev_all_black_flag = 1;
+                    if (motion_manager_get_state()
+                        == MOTION_MANAGER_STATE_MOVE) {
+                        saved_remaining_mm =
+                            motion_manager_get_remaining_mm();
+                        if (saved_remaining_mm > 0) {
+                            if (pd->green) {
+                                /* 绿灯：无缝继续剩余距离 */
+                                motion_manager_replan_remaining_mm(
+                                    saved_remaining_mm);
+                            } else {
+                                /* 无绿灯：停车等待 */
+                                motion_manager_cancel();
+                                motion_control_set_base_speed(0);
+                                motion_control_set_diff(0);
+                                substate =
+                                    CONTROL_RUN_BLACK_LINE_WAIT;
+                            }
+                        }
                     }
                 }
+                if (!pd->all_black_flag) {
+                    prev_all_black_flag = 0;
+                }
 
-                /* 仍在 NORMAL：普通闭环（含感知差速） */
-                if (substate == CONTROL_RUN_NORMAL) {
-                    motion_manager_set_normal(normal_params.base_speed,
-                        current_angle, pd->diff, normal_params.angle_enable);
+                /* 距离规划完成检测 */
+                if (motion_manager_get_state()
+                    == MOTION_MANAGER_STATE_NORMAL) {
+                    if (last_direction == 1 || last_direction == 2) {
+                        /* 左转或右转 */
+                        motion_manager_start_rotate(
+                            get_turn_angle(last_direction),
+                            plan_params.speed);
+                        substate = CONTROL_RUN_TURN;
+                    } else {
+                        /* 直行（direction=0 或无效默认直行） */
+                        motion_manager_start_move(
+                            plan_params.distance_mm,
+                            plan_params.speed);
+                        /* 保持在 MOVE */
+                    }
                 }
                 break;
 
-            case CONTROL_RUN_JUNCTION_MOVE:
-                /* 等待移动完成 */
-                if (motion_manager_get_state() == MOTION_MANAGER_STATE_NORMAL) {
-                    if (saved_junction_direction == 0) {
-                        substate = CONTROL_RUN_NORMAL;
-                    } else {
-                        float rot_ang = (saved_junction_direction == 1)
-                            ? JUNCTION_ANGLE_RIGHT_DEG : JUNCTION_ANGLE_LEFT_DEG;
-                        motion_manager_start_rotate(rot_ang, plan_params.speed);
-                        substate = CONTROL_RUN_JUNCTION_ROTATE;
-                    }
+            case CONTROL_RUN_TURN:
+                /* 启动延迟处理（障碍物恢复后首次进入） */
+                if (turn_pending_start) {
+                    turn_pending_start = 0;
+                    motion_manager_start_rotate(
+                        get_turn_angle(last_direction),
+                        plan_params.speed);
+                    break;
+                }
+
+                /* 旋转完成检测 */
+                if (motion_manager_get_state()
+                    == MOTION_MANAGER_STATE_NORMAL) {
+                    /* 旋转完成，开始前进 */
+                    saved_remaining_mm = plan_params.distance_mm;
+                    move_pending_start = 1;
+                    substate = CONTROL_RUN_MOVE;
                 }
                 break;
 
-            case CONTROL_RUN_JUNCTION_ROTATE:
-                /* 等待旋转完成 */
-                if (motion_manager_get_state() == MOTION_MANAGER_STATE_NORMAL) {
-                    substate = CONTROL_RUN_NORMAL;
-                }
-                break;
+            case CONTROL_RUN_BLACK_LINE_WAIT:
+                /* 确保停车 */
+                motion_control_set_base_speed(0);
+                motion_control_set_diff(0);
+                motion_control_enable_angle(1);
 
-            case CONTROL_RUN_WAIT_GREEN:
-                /* 停车等待绿灯重新出现 */
-                motion_manager_set_normal(0, current_angle, 0, 1);
+                /* 等待绿灯 */
                 if (pd->green) {
-                    execute_junction(saved_junction_direction, 1);
+                    motion_manager_start_move(saved_remaining_mm,
+                        plan_params.speed);
+                    substate = CONTROL_RUN_MOVE;
                 }
                 break;
 
             default:
-                substate = CONTROL_RUN_NORMAL;
+                substate = CONTROL_RUN_MOVE;
                 break;
             }
             break;
@@ -207,16 +283,16 @@ void control_manager_task(void)
         }
     }
 
-    /* 4. 运动管理层推进（内部状态机消耗 tick_flag） */
+    /* 5. 运动管理层推进 */
     motion_manager_task();
 
-    /* 5. 障碍物二次安全覆盖（防止 motion_manager 完成时恢复非零速度） */
+    /* 6. 障碍物二次安全覆盖（防止 motion_manager 恢复非零速度） */
     if (obstacle_active) {
         motion_control_set_base_speed(0);
         motion_control_set_diff(0);
     }
 
-    /* 6. 底层闭环控制 */
+    /* 7. 底层闭环控制 */
     motion_control_task();
 }
 
@@ -229,14 +305,33 @@ void control_manager_set_running(uint8_t run)
 {
     if (run) {
         if (state == CONTROL_MANAGER_STATE_STOP) {
-            state    = CONTROL_MANAGER_STATE_RUNNING;
-            substate = CONTROL_RUN_NORMAL;
-            junction_pending = 0;
+            gyro_data_t gyro;
+
+            state = CONTROL_MANAGER_STATE_RUNNING;
+            substate = CONTROL_RUN_MOVE;
+            last_direction = 0;
+            prev_all_black_flag = 0;
+            move_pending_start = 0;
+            turn_pending_start = 0;
+            obstacle_active = 0;
+            saved_remaining_mm = plan_params.distance_mm;
+
+            /* 锁定当前角度 */
+            gyro = gyro_get_data();
+            *motion_control_get_target_angle_ptr() = gyro.yaw;
+            motion_control_set_angle(gyro.yaw);
+            motion_control_enable_angle(1);
+
+            /* 启动首段距离规划 */
+            motion_manager_start_move(plan_params.distance_mm,
+                plan_params.speed);
         }
     } else {
-        state    = CONTROL_MANAGER_STATE_STOP;
-        substate = CONTROL_RUN_NORMAL;
-        junction_pending = 0;
+        state = CONTROL_MANAGER_STATE_STOP;
+        substate = CONTROL_RUN_MOVE;
+        motion_manager_cancel();
+        motion_control_set_base_speed(0);
+        motion_control_set_diff(0);
     }
 }
 
@@ -261,6 +356,8 @@ void control_manager_set_normal_params(const control_normal_params_t *p)
         return;
     }
     normal_params = *p;
+    /* 同步速度到运动规划参数 */
+    plan_params.speed = p->base_speed;
 }
 
 const control_plan_params_t *control_manager_get_plan_params(void)
@@ -274,4 +371,6 @@ void control_manager_set_plan_params(const control_plan_params_t *p)
         return;
     }
     plan_params = *p;
+    /* 同步速度到基础参数 */
+    normal_params.base_speed = p->speed;
 }

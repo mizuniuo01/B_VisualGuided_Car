@@ -16,7 +16,6 @@ static float feedforward_coeff;
 
 void perception_init(void)
 {
-    data.junction_flag = 0;
     data.direction = 0;
     data.green = 0;
     data.diff = 0;
@@ -32,15 +31,11 @@ void perception_task(void)
     ultrasonic_data_t ultra;
 
     /* 每 tick 清除上一周期的标志位，由当前帧重新判定 */
-    data.junction_flag = 0;
     data.all_black_flag = 0;
     data.obstacle_flag = 0;
 
     /* 视觉 */
     cam = cam_get_data();
-    if (cam.is_junction) {
-        data.junction_flag = 1;
-    }
     if (cam.direction != 3) {
         data.direction = cam.direction;
     }
