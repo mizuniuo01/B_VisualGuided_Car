@@ -38,6 +38,7 @@
 #include "encoder.h"
 #include "system.h"
 #include "motion_manager.h"
+#include "motion_control.h"
 #include "perception.h"
 #include "control_manager.h"
 #include <stdio.h>
@@ -89,12 +90,11 @@ void display_task(void)
     int16_t encoder_right = encoder_get_right();
     pid_param_t sp_pid;
     pid_param_t ap_pid;
-    motion_manager_state_t ms;
-    int16_t plan_dist = control_manager_get_plan_distance();
-    float plan_ang = control_manager_get_plan_angle();
+    const control_normal_params_t *np = control_manager_get_normal_params();
+    const control_plan_params_t *pp = control_manager_get_plan_params();
+    float target_angle = *motion_control_get_target_angle_ptr();
     pid_get_param(system_pid_angle(), &ap_pid);
     pid_get_param(system_pid_speed_left(), &sp_pid);
-    ms = motion_manager_get_state();
     perception_data_t *perception = perception_get_data();
     char sensor_str[30] = {0};
     for (int i = 0; i < 8; i++) {
@@ -126,16 +126,18 @@ void display_task(void)
     blueteeth_display(0, DISPLAY_LINE_8_Y, "AngPID: P=%.1f I=%.2f D=%.1f", ap_pid.kp,
         ap_pid.ki, ap_pid.kd);
     blueteeth_display(0, DISPLAY_LINE_9_Y, "Ctrl: spd=%d ang=%.0f diff=%d en=%d",
-        control_manager_get_base_speed(), control_manager_get_target_angle(),
-        control_manager_get_diff(), control_manager_get_angle_enable());
-    blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s dist=%d ang=%.0f",
-        (ms == MOTION_MANAGER_STATE_NORMAL)   ? "NORM"
-        : (ms == MOTION_MANAGER_STATE_MOVE)   ? "MOVE"
-        : (ms == MOTION_MANAGER_STATE_ROTATE) ? "ROTA"
-                                              : "???",
-        plan_dist, plan_ang);
+        np->base_speed, target_angle, perception->diff, np->angle_enable);
+    blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s/%s dist=%d ang=%.0f spd=%d",
+        (control_manager_get_state() == CONTROL_MANAGER_STATE_STOP) ? "STOP" : "RUN",
+        (control_manager_get_substate() == CONTROL_RUN_NORMAL)            ? "NORM"
+        : (control_manager_get_substate() == CONTROL_RUN_JUNCTION_MOVE)   ? "JMOVE"
+        : (control_manager_get_substate() == CONTROL_RUN_JUNCTION_ROTATE) ? "JROT"
+        : (control_manager_get_substate() == CONTROL_RUN_WAIT_GREEN)      ? "WAITG"
+                                                                          : "???",
+        pp->distance_mm, pp->delta_deg, pp->speed);
     blueteeth_display(0, DISPLAY_LINE_11_Y,
-        "Percep: J=%d D=%d G=%d diff=%d all_black=%d obs=%d", perception->junction_flag,
-        perception->direction, perception->green, perception->diff,
-        perception->all_black_flag, perception->obstacle_flag);
+        "Percep: J=%d D=%d G=%d diff=%d all_b=%d obs=%d ff=%.1f",
+        perception->junction_flag, perception->direction, perception->green,
+        perception->diff, perception->all_black_flag, perception->obstacle_flag,
+        perception_get_feedforward());
 }

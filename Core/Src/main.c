@@ -141,10 +141,7 @@ int main(void)
     sensor_task();
     blueteeth_task();
     display_task();
-    perception_task();
     control_manager_task();
-    motion_manager_task();
-    motion_control_task();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

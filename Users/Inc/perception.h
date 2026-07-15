@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 /* 感知参数 */
-#define FEEDFORWARD_COEFF 0.5f   /* 前馈系数，视觉偏差→差速缩放因子 */
+#define FEEDFORWARD_COEFF_DEFAULT 0.5f  /* 前馈系数默认值，视觉偏差→差速缩放因子 */
 #define OBSTACLE_THRESH_MM 50.0f  /* 障碍物距离阈值（mm） */
 
 typedef struct {
@@ -19,5 +19,7 @@ typedef struct {
 void perception_init(void);
 void perception_task(void);
 perception_data_t *perception_get_data(void);
+void perception_set_feedforward(float coeff);
+float perception_get_feedforward(void);
 
 #endif

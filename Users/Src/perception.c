@@ -12,6 +12,7 @@
 #include "ultrasonic.h"
 
 static perception_data_t data;
+static float feedforward_coeff;
 
 void perception_init(void)
 {
@@ -21,6 +22,7 @@ void perception_init(void)
     data.diff = 0;
     data.all_black_flag = 0;
     data.obstacle_flag = 0;
+    feedforward_coeff = FEEDFORWARD_COEFF_DEFAULT;
 }
 
 void perception_task(void)
@@ -29,6 +31,11 @@ void perception_task(void)
     uint8_t sensor_raw;
     ultrasonic_data_t ultra;
 
+    /* 每 tick 清除上一周期的标志位，由当前帧重新判定 */
+    data.junction_flag = 0;
+    data.all_black_flag = 0;
+    data.obstacle_flag = 0;
+
     /* 视觉 */
     cam = cam_get_data();
     if (cam.is_junction) {
@@ -36,7 +43,7 @@ void perception_task(void)
     }
     data.direction = cam.direction;
     data.green = cam.green;
-    data.diff = (int16_t)((float)cam.deviation * FEEDFORWARD_COEFF);
+    data.diff = (int16_t)((float)cam.deviation * feedforward_coeff);
 
     /* 灰度 */
     sensor_raw = sensor_read_data();
@@ -54,4 +61,24 @@ void perception_task(void)
 perception_data_t *perception_get_data(void)
 {
     return &data;
+}
+
+/**
+ * @brief  设置视觉前馈系数
+ * @param  coeff  前馈系数（>0 时偏差放大，<0 时反向）
+ * @retval 无
+ */
+void perception_set_feedforward(float coeff)
+{
+    feedforward_coeff = coeff;
+}
+
+/**
+ * @brief  获取视觉前馈系数
+ * @param  无
+ * @retval 当前前馈系数
+ */
+float perception_get_feedforward(void)
+{
+    return feedforward_coeff;
 }
