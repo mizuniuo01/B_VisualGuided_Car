@@ -11,16 +11,21 @@ typedef enum {
     CAM_MAX_FRAME_LEN = 128,   /* 单帧最大长度 */
 } cam_buf_size_t;
 
-/* 帧定界字节 */
+/* 帧定界与转义字节 */
 typedef enum {
-    CAM_FRAME_TAIL = 0xFE,
+    CAM_FRAME_TAIL   = 0xFE,
     CAM_FRAME_HEADER = 0xFF,
+    CAM_ESC_BYTE     = 0x7D, /* 转义前缀 */
+    CAM_ESC_TAIL     = 0x5E, /* ESC+5E → 0xFE */
+    CAM_ESC_HEADER   = 0x5F, /* ESC+5F → 0xFF */
+    CAM_ESC_ESC      = 0x5D, /* ESC+5D → 0x7D */
 } cam_frame_byte_t;
 
 /* 帧解析状态 */
 typedef enum {
     CAM_STATE_WAIT_HEADER = 0,
     CAM_STATE_RECEIVING_DATA,
+    CAM_STATE_ESCAPE,
 } cam_frame_state_t;
 
 /* 摄像头句柄 */

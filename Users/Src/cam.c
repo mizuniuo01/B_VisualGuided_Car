@@ -158,6 +158,8 @@ void cam_task(void)
                     cam_inst.rx_state = CAM_STATE_WAIT_HEADER;
                 } else if (byte == CAM_FRAME_HEADER) {
                     cam_inst.frame_index = 0;
+                } else if (byte == CAM_ESC_BYTE) {
+                    cam_inst.rx_state = CAM_STATE_ESCAPE;
                 } else {
                     if (cam_inst.frame_index < CAM_MAX_FRAME_LEN) {
                         cam_inst.frame_buffer[cam_inst.frame_index++] = byte;
@@ -165,6 +167,22 @@ void cam_task(void)
                         cam_inst.rx_state = CAM_STATE_WAIT_HEADER;
                     }
                 }
+                break;
+
+            case CAM_STATE_ESCAPE:
+                if (byte == CAM_ESC_TAIL) {
+                    byte = CAM_FRAME_TAIL;
+                } else if (byte == CAM_ESC_HEADER) {
+                    byte = CAM_FRAME_HEADER;
+                } else if (byte == CAM_ESC_ESC) {
+                    byte = CAM_ESC_BYTE;
+                }
+                if (cam_inst.frame_index < CAM_MAX_FRAME_LEN) {
+                    cam_inst.frame_buffer[cam_inst.frame_index++] = byte;
+                } else {
+                    cam_inst.rx_state = CAM_STATE_WAIT_HEADER;
+                }
+                cam_inst.rx_state = CAM_STATE_RECEIVING_DATA;
                 break;
 
             default:

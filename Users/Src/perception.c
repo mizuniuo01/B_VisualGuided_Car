@@ -1,0 +1,60 @@
+/**
+ * @file    perception.c
+ * @brief   环境感知模块（视觉 + 灰度 + 超声波数据封装）
+ * @author  mizuniuo01
+ * @date    2026-07-15
+ */
+
+#include "perception.h"
+#include "cam.h"
+#include "sensor.h"
+#include "pattern.h"
+#include "ultrasonic.h"
+
+#define FEEDFORWARD_COEFF  0.5f
+#define OBSTACLE_THRESH_MM  50.0f
+
+static perception_data_t data;
+
+void perception_init(void)
+{
+    data.junction_flag  = 0;
+    data.direction      = 0;
+    data.green          = 0;
+    data.diff           = 0;
+    data.all_black_flag = 0;
+    data.obstacle_flag  = 0;
+}
+
+void perception_task(void)
+{
+    cam_data_t cam;
+    uint8_t sensor_raw;
+    ultrasonic_data_t ultra;
+
+    /* 视觉 */
+    cam = cam_get_data();
+    if (cam.is_junction) {
+        data.junction_flag = 1;
+    }
+    data.direction = cam.direction;
+    data.green     = cam.green;
+    data.diff      = (int16_t)((float)cam.deviation * FEEDFORWARD_COEFF);
+
+    /* 灰度 */
+    sensor_raw = sensor_read_data();
+    if (pattern_lookup(sensor_raw) == PATTERN_CROSS) {
+        data.all_black_flag = 1;
+    }
+
+    /* 超声波 */
+    ultra = ultrasonic_get_data();
+    if (ultra.is_valid && ultra.distance_mm <= OBSTACLE_THRESH_MM) {
+        data.obstacle_flag = 1;
+    }
+}
+
+perception_data_t *perception_get_data(void)
+{
+    return &data;
+}

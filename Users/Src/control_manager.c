@@ -8,6 +8,7 @@
 #include "control_manager.h"
 #include "motion_control.h"
 #include "motion_manager.h"
+#include "perception.h"
 #include "gyroscope.h"
 
 volatile uint8_t control_manager_tick_flag = 0;

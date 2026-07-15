@@ -38,6 +38,7 @@
 #include "encoder.h"
 #include "system.h"
 #include "motion_manager.h"
+#include "perception.h"
 #include "control_manager.h"
 #include <stdio.h>
 #include <string.h>
@@ -94,6 +95,7 @@ void display_task(void)
     pid_get_param(system_pid_angle(), &ap_pid);
     pid_get_param(system_pid_speed_left(), &sp_pid);
     ms = motion_manager_get_state();
+    perception_data_t *perception = perception_get_data();
     char sensor_str[30] = {0};
     for (int i = 0; i < 8; i++) {
         if (sensor_data & (1 << i)) {
@@ -115,15 +117,24 @@ void display_task(void)
         ultra.is_valid);
     blueteeth_display(0, DISPLAY_LINE_4_Y, "Gyro: x=%.2f, y=%.2f, z=%.2f", gyro.roll,
         gyro.pitch, gyro.yaw);
-    blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: J=%d D=%d G=%d dev=%d", cam.is_junction, cam.direction, cam.green, cam.deviation);
-    blueteeth_display(0, DISPLAY_LINE_6_Y, "Encoder: L=%d, R=%d", encoder_left, encoder_right);
-    blueteeth_display(0, DISPLAY_LINE_7_Y, "SpdPID: P=%.1f I=%.2f D=%.1f", sp_pid.kp, sp_pid.ki, sp_pid.kd);
-    blueteeth_display(0, DISPLAY_LINE_8_Y, "AngPID: P=%.1f I=%.2f D=%.1f", ap_pid.kp, ap_pid.ki, ap_pid.kd);
+    blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: J=%d D=%d G=%d dev=%d", cam.is_junction,
+        cam.direction, cam.green, cam.deviation);
+    blueteeth_display(0, DISPLAY_LINE_6_Y, "Encoder: L=%d, R=%d", encoder_left,
+        encoder_right);
+    blueteeth_display(0, DISPLAY_LINE_7_Y, "SpdPID: P=%.1f I=%.2f D=%.1f", sp_pid.kp,
+        sp_pid.ki, sp_pid.kd);
+    blueteeth_display(0, DISPLAY_LINE_8_Y, "AngPID: P=%.1f I=%.2f D=%.1f", ap_pid.kp,
+        ap_pid.ki, ap_pid.kd);
     blueteeth_display(0, DISPLAY_LINE_9_Y, "Ctrl: spd=%d ang=%.0f diff=%d en=%d",
         cm_get_base_speed(), cm_get_target_angle(), cm_get_diff(), cm_get_angle_enable());
     blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s dist=%d ang=%.0f",
-        (ms == MOTION_MANAGER_STATE_NORMAL) ? "NORM" :
-        (ms == MOTION_MANAGER_STATE_MOVE)   ? "MOVE" :
-        (ms == MOTION_MANAGER_STATE_ROTATE) ? "ROTA" : "???",
+        (ms == MOTION_MANAGER_STATE_NORMAL)   ? "NORM"
+        : (ms == MOTION_MANAGER_STATE_MOVE)   ? "MOVE"
+        : (ms == MOTION_MANAGER_STATE_ROTATE) ? "ROTA"
+                                              : "???",
         plan_dist, plan_ang);
+    blueteeth_display(0, DISPLAY_LINE_11_Y,
+        "Percep: J=%d D=%d G=%d diff=%d all_black=%d obs=%d", perception->junction_flag,
+        perception->direction, perception->green, perception->diff,
+        perception->all_black_flag, perception->obstacle_flag);
 }

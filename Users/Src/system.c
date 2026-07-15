@@ -39,6 +39,7 @@
 #include "encoder.h"
 #include "motion_control.h"
 #include "motion_manager.h"
+#include "perception.h"
 #include "control_manager.h"
 
 /* 系统运行标志位 */
@@ -215,5 +216,6 @@ void system_init(void)
 
     motion_control_init();
     motion_manager_init();
+    perception_init();
     control_manager_init();
 }

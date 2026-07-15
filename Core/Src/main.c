@@ -42,9 +42,10 @@
 #include "sensor.h"
 #include "ultrasonic.h"
 #include "display.h"
+#include "bt_command.h"
 #include "motion_control.h"
 #include "motion_manager.h"
-#include "bt_command.h"
+#include "perception.h"
 #include "control_manager.h"
 /* USER CODE END Includes */
 
@@ -140,6 +141,7 @@ int main(void)
     sensor_task();
     blueteeth_task();
     display_task();
+    perception_task();
     control_manager_task();
     motion_manager_task();
     motion_control_task();
@@ -240,7 +242,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     /* 打印刷新标志位 */
     display_tick_cnt++;
-    if (display_tick_cnt >= 10) {
+    if (display_tick_cnt >= 5) {
       display_tick_cnt = 0;
       display_refresh_flag = 1;
     }
