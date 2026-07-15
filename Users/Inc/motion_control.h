@@ -18,11 +18,11 @@ typedef enum {
 #define MC_SPEED_PID_INTEGRAL_MAX 2000.0f /* 速度环积分上限 */
 
 /* 角度环 PID 默认参数（yaw 误差 → 差速 count/10ms） */
-#define MC_ANGLE_PID_KP 2.0f    /* 角度环比例系数 */
+#define MC_ANGLE_PID_KP 1.0f    /* 角度环比例系数 */
 #define MC_ANGLE_PID_KI 0.0f    /* 角度环积分系数 */
-#define MC_ANGLE_PID_KD 5.0f    /* 角度环微分系数 */
+#define MC_ANGLE_PID_KD 13.0f    /* 角度环微分系数 */
 #define MC_ANGLE_PID_OUT_MAX 50.0f   /* 角度环输出上限 */
-#define MC_ANGLE_PID_INTEGRAL_MAX 100.0f  /* 角度环积分上限 */
+#define MC_ANGLE_PID_INTEGRAL_MAX 10.0f  /* 角度环积分上限 */
 
 /* motion_control 任务节拍（TIM6 ISR 置1，主循环消费） */
 extern volatile uint8_t motion_control_tick_flag;

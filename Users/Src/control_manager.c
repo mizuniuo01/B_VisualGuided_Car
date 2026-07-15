@@ -20,13 +20,13 @@
 volatile uint8_t control_manager_tick_flag = 0;
 
 static control_normal_params_t normal_params = {
-    .base_speed   = 30,
+    .base_speed   = 15,
     .angle_enable = 1,
 };
 static control_plan_params_t plan_params = {
     .distance_mm = 100,
     .delta_deg   = 90.0f,
-    .speed       = 30,
+    .speed       = 15,
 };
 
 static control_manager_state_t state;

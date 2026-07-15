@@ -5,8 +5,8 @@
 #define BLT_STEP_SPD_KP 1.0f   /* 速度环 KP 步长 */
 #define BLT_STEP_SPD_KI 0.5f   /* 速度环 KI 步长 */
 #define BLT_STEP_SPD_KD 1.0f   /* 速度环 KD 步长 */
-#define BLT_STEP_ANG_KP 1.0f   /* 角度环 KP 步长 */
-#define BLT_STEP_ANG_KI 0.1f   /* 角度环 KI 步长 */
+#define BLT_STEP_ANG_KP 0.1f   /* 角度环 KP 步长 */
+#define BLT_STEP_ANG_KI 0.01f  /* 角度环 KI 步长 */
 #define BLT_STEP_ANG_KD 1.0f   /* 角度环 KD 步长 */
 #define BLT_STEP_TARGET_ANG 5.0f   /* 目标角度步长（度） */
 #define BLT_STEP_ROTATE_ANG 5.0f   /* 旋转角度步长（度） */

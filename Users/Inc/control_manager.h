@@ -5,9 +5,9 @@
 
 /* 路口控制距离（mm） */
 typedef enum {
-    JUNCTION_DIST_STRAIGHT_MM  = 300,
-    JUNCTION_DIST_TURN_MM      = 200,
-    JUNCTION_DIST_GREEN_REDUCE = 100,
+    JUNCTION_DIST_STRAIGHT_MM  = 500,
+    JUNCTION_DIST_TURN_MM      = 400,
+    JUNCTION_DIST_GREEN_REDUCE = 200,
 } control_junction_dist_t;
 
 /* 路口旋转角度（度，浮点常量必须用宏） */
