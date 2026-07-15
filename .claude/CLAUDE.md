@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 基于 STM32F407XX 的视觉引导小车，使用 STM32CubeMX 生成 HAL 代码，CMake + Ninja 构建。
 
-**当前阶段**：驱动层全部完成，即将进入 PID 速度闭环和巡线算法阶段。
+**当前阶段**：驱动层全部完成，motion_control（速度环+角度环）已完成并通过测试，即将进入 motion_manager 层设计。
 
 ## 构建命令
 
@@ -27,7 +27,7 @@ cmake --build build/Debug
 ## 架构分层
 
 ```
-Users/           ← 应用层驱动模块（motor, encoder, pid, cam, gyroscope, blueteeth 等）
+Users/           ← 应用层：驱动模块（motor, encoder, cam, gyroscope 等）+ 控制模块（motion_control）
 Core/            ← STM32CubeMX 生成的 HAL 初始化代码（main.c, gpio.c, stm32f4xx_it.c 等）
 Drivers/CMSIS/   ← ARM CMSIS
 Drivers/STM32F4xx_HAL_Driver/ ← STM32 HAL 库
@@ -37,6 +37,7 @@ cmake/            ← 工具链文件和 CubeMX 构建集成
 - **`Users/Inc` / `Users/Src`**：所有应用模块。每个模块有 `.h`（接口）和 `.c`（实现）。模块间通过 `system.h/c` 的 getter 函数获取句柄，不直接 `extern` 全局变量。
 - **`Core/Src/main.c`**：平台初始化（HAL_Init、时钟、GPIO）+ 主循环 + HAL 回调集中处理。
 - **中断服务函数** 写在 `Core/Src/stm32f4xx_it.c`，回调实现在对应 `Users/` 模块中。
+- **控制分层**：`control_manager` → `perception` → `motion_manager` → `motion_control` → `driver`（详见 `docs/Control_Structure.md`）
 
 ## 硬件资源分配
 
@@ -74,7 +75,11 @@ cmake/            ← 工具链文件和 CubeMX 构建集成
 | `error_handler` | 集中错误管理：传输→上报→处理 三层架构 | ✓ |
 | `buzzer` / `led` | 基础 GPIO 控制外设 | ✓ |
 | `system` | 硬件句柄注册中心，所有共享句柄的唯一定义处 | ✓ |
-| `pid` | PID 控制器（速度闭环） | 待实现 |
+| `pid` | PID 控制器（微分-on-实际值，含参数结构体 set/get 接口） | ✓ |
+| `motion_control` | 底层闭环控制：角度环 + 双轮速度环，10ms task，yaw unwrap | ✓ |
+| `motion_manager` | 运动控制管理层：控制模式管理、运动规划、目标生成 | 待实现 |
+| `control_manager` | 顶层状态机与任务调度 | 待实现 |
+| `perception` | 环境感知与传感器数据融合 | 待实现 |
 
 ## 核心设计约定
 

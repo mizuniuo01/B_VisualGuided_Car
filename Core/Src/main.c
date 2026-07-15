@@ -43,6 +43,8 @@
 #include "ultrasonic.h"
 #include "display.h"
 #include "motion_control.h"
+#include "motion_manager.h"
+#include "bt_command.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -137,6 +139,7 @@ int main(void)
     sensor_task();
     blueteeth_task();
     display_task();
+    motion_manager_task();
     motion_control_task();
     /* USER CODE END WHILE */
 
@@ -201,6 +204,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     static uint8_t encoder_tick_cnt = 0;
     static uint8_t display_tick_cnt = 0;
     static uint8_t motion_control_tick_cnt = 0;
+    static uint8_t motion_manager_tick_cnt = 0;
 
     /* 系统运行状态指示灯标志位 */
     system_led_cnt++;
@@ -243,6 +247,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (motion_control_tick_cnt >= 10) {
       motion_control_tick_cnt = 0;
       motion_control_tick_flag = 1;
+    }
+
+    /* motion_manager 10ms周期服务标志位 */
+    motion_manager_tick_cnt++;
+    if (motion_manager_tick_cnt >= 10) {
+      motion_manager_tick_cnt = 0;
+      motion_manager_tick_flag = 1;
     }
   }
 }

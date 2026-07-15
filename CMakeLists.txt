@@ -64,6 +64,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Users/Src/motion_manager.c
     Users/Src/perception.c
     Users/Src/control_manager.c
+    Users/Src/bt_command.c
 )
 
 # Add include paths

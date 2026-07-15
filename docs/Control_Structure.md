@@ -653,3 +653,15 @@ void motion_control_enable_angle(uint8_t enable);
 
 PID 调参统一走 system.c getter + pid.h 通用接口，motion_control 不再
 重复封装 set_pid/get_pid。
+
+## 测试记录（2026-07-15）
+
+motion_control 模块硬件测试全部通过：
+- 速度环：`set_base_speed()` 双轮独立闭环正常，编码器反馈稳定
+- 角度环：`set_angle()` 绝对角度锁定正常，yaw unwrap 跨 ±180° 无突变
+- 角度环开关：`enable_angle(0)` 完全禁用 angle_diff，速度环不受影响
+- 外部差速：`set_diff()` 叠加正常，与 angle_diff 互不冲突
+- 10ms 周期 tick 调度正常，task 内完整数据流无阻塞
+- PID 调参路径：system_pid_xxx() → pid_set_param/get_param 可用
+
+**状态：motion_control 层完成，进入 motion_manager 设计。**

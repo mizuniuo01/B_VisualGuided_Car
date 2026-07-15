@@ -91,18 +91,37 @@
 #include "blueteeth.h"
 #include "error_handler.h"
 #include "system.h"
-#include "led.h"
+#include "bt_command.h"
 #include <stdio.h>
 #include <string.h>
 
 static blueteeth_handle_t blueteeth_inst;
 
-void on_led1_toggle_cmd(void) { led_toggle(system_led1()); }
-
 /* 蓝牙指令字典，按实际需求添加条目 */
 static const blueteeth_command_map_t cmd_table[] = {
     /* {"指令", 回调函数} */
-    {"led1_toggle",on_led1_toggle_cmd}
+    {"spd_kp_up",     on_spd_kp_up},
+    {"spd_kp_down",   on_spd_kp_down},
+    {"spd_ki_up",     on_spd_ki_up},
+    {"spd_ki_down",   on_spd_ki_down},
+    {"spd_kd_up",     on_spd_kd_up},
+    {"spd_kd_down",   on_spd_kd_down},
+    {"ang_kp_up",     on_ang_kp_up},
+    {"ang_kp_down",   on_ang_kp_down},
+    {"ang_ki_up",     on_ang_ki_up},
+    {"ang_ki_down",   on_ang_ki_down},
+    {"ang_kd_up",     on_ang_kd_up},
+    {"ang_kd_down",   on_ang_kd_down},
+    {"base_spd_up",   on_base_spd_up},
+    {"base_spd_down", on_base_spd_down},
+    {"target_ang_up",   on_target_ang_up},
+    {"target_ang_down", on_target_ang_down},
+    {"move_dist_up",   on_move_dist_up},
+    {"move_dist_down", on_move_dist_down},
+    {"rotate_ang_up",   on_rotate_ang_up},
+    {"rotate_ang_down", on_rotate_ang_down},
+    {"move_start",    on_move_start},
+    {"rotate_start",  on_rotate_start},
 };
 
 /* 指令表条目数 */
