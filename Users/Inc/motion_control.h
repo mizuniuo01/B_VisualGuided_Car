@@ -29,4 +29,7 @@ pid_t *motion_control_pid_speed_left(void);
 pid_t *motion_control_pid_speed_right(void);
 pid_t *motion_control_pid_angle(void);
 
+/* 目标角度指针（唯一数据源，上层直接读写） */
+float *motion_control_get_target_angle_ptr(void);
+
 #endif

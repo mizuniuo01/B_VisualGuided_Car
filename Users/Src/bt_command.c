@@ -163,10 +163,10 @@ void on_rotate_ang_down(void)
 
 void on_move_start(void)
 {
-    motion_manager_start_move(cm_get_plan_distance(), cm_get_base_speed());
+    motion_manager_start_move(cm_get_plan_distance(), cm_get_plan_speed());
 }
 
 void on_rotate_start(void)
 {
-    motion_manager_start_rotate(cm_get_plan_angle(), cm_get_base_speed());
+    motion_manager_start_rotate(cm_get_plan_angle(), cm_get_plan_speed());
 }

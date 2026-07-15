@@ -38,6 +38,8 @@
 #include "motor.h"
 #include "encoder.h"
 #include "motion_control.h"
+#include "motion_manager.h"
+#include "control_manager.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -212,4 +214,6 @@ void system_init(void)
     encoder_init(&htim2, &htim1);
 
     motion_control_init();
+    motion_manager_init();
+    control_manager_init();
 }

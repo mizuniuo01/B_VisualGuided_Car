@@ -26,7 +26,4 @@ void motion_manager_start_rotate(float delta_deg, int16_t speed);
 /* 查询当前状态 */
 motion_manager_state_t motion_manager_get_state(void);
 
-/* 查询运动规划目标参数（指针输出） */
-void motion_manager_get_plan_params(int16_t *distance_mm, float *delta_deg);
-
 #endif

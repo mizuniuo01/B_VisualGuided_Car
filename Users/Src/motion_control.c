@@ -266,7 +266,7 @@ void motion_control_enable_angle(uint8_t enable)
 }
 
 /**
- * @brief  获取左轮速度 PID 句柄（供 system.c 注册）
+ * @brief  获取左轮速度 PID 句柄
  * @param  无
  * @retval PID 句柄指针
  */
@@ -276,7 +276,7 @@ pid_t *motion_control_pid_speed_left(void)
 }
 
 /**
- * @brief  获取右轮速度 PID 句柄（供 system.c 注册）
+ * @brief  获取右轮速度 PID 句柄
  * @param  无
  * @retval PID 句柄指针
  */
@@ -286,11 +286,21 @@ pid_t *motion_control_pid_speed_right(void)
 }
 
 /**
- * @brief  获取角度环 PID 句柄（供 system.c 注册）
+ * @brief  获取角度环 PID 句柄
  * @param  无
  * @retval PID 句柄指针
  */
 pid_t *motion_control_pid_angle(void)
 {
     return &pid_angle;
+}
+
+/**
+ * @brief  获取角度环目标指针
+ * @param  无
+ * @retval 目标角度指针
+ */
+float *motion_control_get_target_angle_ptr(void)
+{
+    return &target_angle_deg;
 }

@@ -34,16 +34,16 @@
 #include "system.h"
 
 /* 轮胎参数 */
-#define WHEEL_DIAMETER_MM         65.0f
-#define ENCODER_PPR               13
-#define ENCODER_MULTIPLIER        4       /* QEI 四倍频 */
-#define GEAR_RATIO                28
-#define COUNTS_PER_OUTPUT_REV     ((float)(ENCODER_PPR * ENCODER_MULTIPLIER * GEAR_RATIO))
-#define WHEEL_CIRCUMFERENCE_MM    (3.1415926f * WHEEL_DIAMETER_MM)
-#define COUNTS_PER_MM             (COUNTS_PER_OUTPUT_REV / WHEEL_CIRCUMFERENCE_MM)
+#define WHEEL_DIAMETER_MM 65.0f
+#define ENCODER_PPR 13
+#define ENCODER_MULTIPLIER 4       /* QEI 四倍频 */
+#define GEAR_RATIO 28
+#define COUNTS_PER_OUTPUT_REV ((float)(ENCODER_PPR * ENCODER_MULTIPLIER * GEAR_RATIO))
+#define WHEEL_CIRCUMFERENCE_MM (3.1415926f * WHEEL_DIAMETER_MM)
+#define COUNTS_PER_MM (COUNTS_PER_OUTPUT_REV / WHEEL_CIRCUMFERENCE_MM)
 
 /* 角度到达死区（度） */
-#define ROTATE_DEAD_ZONE_DEG      3.0f
+#define ROTATE_DEAD_ZONE_DEG 3.0f
 
 volatile uint8_t motion_manager_tick_flag = 0;
 
@@ -62,13 +62,11 @@ static float home_yaw;
 /* MOVE 规划 */
 static float target_total_counts;
 static float accumulated_counts;
-static int16_t move_speed;      /* 参数缓存 */
 static int16_t plan_distance_mm; /* 目标距离，供外部查询 */
 
 /* ROTATE 规划 */
 static float rotate_target_deg;
-static int16_t rotate_speed;    /* 参数缓存 */
-static float plan_delta_deg;    /* 目标角度增量，供外部查询 */
+static int16_t rotate_speed;
 
 /* 前一周期 encoder raw，用于判断是否首次进入 tick */
 static uint8_t move_first_tick;
@@ -150,7 +148,6 @@ void motion_manager_start_move(int16_t distance_mm, int16_t speed)
 
     target_total_counts = (float)distance_mm * COUNTS_PER_MM;
     accumulated_counts = 0.0f;
-    move_speed = speed;
     move_first_tick = 1;
     plan_distance_mm = distance_mm;
 
@@ -171,9 +168,8 @@ void motion_manager_start_move(int16_t distance_mm, int16_t speed)
  */
 void motion_manager_start_rotate(float delta_deg, int16_t speed)
 {
-    rotate_target_deg = home_yaw + delta_deg;
+    rotate_target_deg = *motion_control_get_target_angle_ptr() + delta_deg;
     rotate_speed = speed;
-    plan_delta_deg = delta_deg;
 
     motion_control_set_base_speed(speed);
     motion_control_set_angle(rotate_target_deg);
@@ -209,8 +205,10 @@ void motion_manager_task(void)
             enc_l = encoder_get_left();
             enc_r = encoder_get_right();
 
-            if (enc_l < 0) enc_l = (int16_t)(-enc_l);
-            if (enc_r < 0) enc_r = (int16_t)(-enc_r);
+            if (enc_l < 0)
+                enc_l = (int16_t)(-enc_l);
+            if (enc_r < 0)
+                enc_r = (int16_t)(-enc_r);
 
             /* 首次 tick 跳过（10ms 计数尚未稳定） */
             if (move_first_tick) {
@@ -225,10 +223,8 @@ void motion_manager_task(void)
                 /* done：恢复 start 前的 NORMAL 参数，避免速度跳变 */
                 pid_clear(system_pid_speed_left());
                 pid_clear(system_pid_speed_right());
-                motion_control_set_base_speed(normal_base_speed);
-                motion_control_set_angle(normal_target_angle);
-                motion_control_set_diff(normal_external_diff);
-                motion_control_enable_angle(normal_angle_enable);
+                motion_manager_set_normal(normal_base_speed, normal_target_angle,
+                    normal_external_diff, normal_angle_enable);
                 state = MOTION_MANAGER_STATE_NORMAL;
             }
             break;
@@ -266,20 +262,4 @@ void motion_manager_task(void)
 motion_manager_state_t motion_manager_get_state(void)
 {
     return state;
-}
-
-/**
- * @brief  查询运动规划目标参数
- * @param  distance_mm  输出：距离目标（mm），无规划时返回上次设定值
- * @param  delta_deg    输出：角度增量（度），无规划时返回上次设定值
- * @retval 无
- */
-void motion_manager_get_plan_params(int16_t *distance_mm, float *delta_deg)
-{
-    if (distance_mm) {
-        *distance_mm = plan_distance_mm;
-    }
-    if (delta_deg) {
-        *delta_deg = plan_delta_deg;
-    }
 }
