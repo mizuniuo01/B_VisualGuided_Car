@@ -60,6 +60,10 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Users/Src/sensor.c
     Users/Src/ultrasonic.c
     Users/Src/display.c
+    Users/Src/motion_control.c
+    Users/Src/motion_manager.c
+    Users/Src/perception.c
+    Users/Src/control_manager.c
 )
 
 # Add include paths

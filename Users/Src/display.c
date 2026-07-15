@@ -104,6 +104,6 @@ void display_task(void)
     blueteeth_display(0, DISPLAY_LINE_3_Y, "Ultra: %.2f mm, valid=%d", ultra.distance_mm,
         ultra.is_valid);
     blueteeth_display(0, DISPLAY_LINE_4_Y, "Sensor: %s", sensor_str);
-    blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: %d, %d, %d", cam.is_junction, cam.direction, cam.green);
+    blueteeth_display(0, DISPLAY_LINE_5_Y, "Cam: J=%d D=%d G=%d dev=%d", cam.is_junction, cam.direction, cam.green, cam.deviation);
     blueteeth_display(0, DISPLAY_LINE_6_Y, "Encoder: L=%d, R=%d", encoder_left, encoder_right);
 }

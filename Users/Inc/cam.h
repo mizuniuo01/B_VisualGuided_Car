@@ -42,6 +42,7 @@ typedef struct {
     uint8_t is_junction; /* 是否在路口：1=路口，0=正常 */
     uint8_t direction;   /* 方向指令：0=直走，1=右转，2=左转 */
     uint8_t green;       /* 绿灯标志：1=检测到绿灯，0=无 */
+    int8_t  deviation;   /* 巡线偏差：正值=偏右，负值=偏左（像素） */
 } cam_data_t;
 
 /* 帧就绪标志位（收到完整帧时置 1，外部读取后手动清零） */

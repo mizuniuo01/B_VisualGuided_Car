@@ -146,11 +146,12 @@ void cam_task(void)
                         cam_inst.frame_buffer[cam_inst.frame_index] = '\0';
                     }
 
-                    /* 数据解析：[is_junction, direction, green] 共 3 字节 */
-                    if (cam_inst.frame_index == 3) {
+                    /* 数据解析：[is_junction, direction, green, deviation] 共 4 字节 */
+                    if (cam_inst.frame_index == 4) {
                         cam_data.is_junction = cam_inst.frame_buffer[0];
                         cam_data.direction   = cam_inst.frame_buffer[1];
                         cam_data.green       = cam_inst.frame_buffer[2];
+                        cam_data.deviation   = (int8_t)cam_inst.frame_buffer[3];
                     }
 
                     cam_frame_ready = 1;
