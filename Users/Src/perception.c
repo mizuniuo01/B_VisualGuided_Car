@@ -41,7 +41,9 @@ void perception_task(void)
     if (cam.is_junction) {
         data.junction_flag = 1;
     }
-    data.direction = cam.direction;
+    if (cam.direction != 3) {
+        data.direction = cam.direction;
+    }
     data.green = cam.green;
     data.diff = (int16_t)((float)cam.deviation * feedforward_coeff);
 
