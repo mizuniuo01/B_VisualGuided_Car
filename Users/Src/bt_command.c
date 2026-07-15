@@ -305,6 +305,19 @@ void on_rotate_start(void)
     motion_manager_start_rotate(p->delta_deg, p->speed);
 }
 
+/* ==================== 右转 ==================== */
+
+/**
+ * @brief  右转 -90°
+ * @param  无
+ * @retval 无
+ */
+void on_rotate_right(void)
+{
+    const control_plan_params_t *p = control_manager_get_plan_params();
+    motion_manager_start_rotate(-90.0f, p->speed);
+}
+
 /* ==================== 控制状态 ==================== */
 
 /**

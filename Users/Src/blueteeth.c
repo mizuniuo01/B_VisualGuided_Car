@@ -122,6 +122,7 @@ static const blueteeth_command_map_t cmd_table[] = {
     {"rotate_ang_down", on_rotate_ang_down},
     {"move_start", on_move_start},
     {"rotate_start", on_rotate_start},
+    {"rotate_right", on_rotate_right},
     {"ctrl_toggle", on_ctrl_toggle},
     {"ff_up", on_ff_up},
     {"ff_down", on_ff_down},

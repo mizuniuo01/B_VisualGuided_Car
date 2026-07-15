@@ -15,7 +15,7 @@
 /* 蓝牙调参步长（整数常量） */
 typedef enum {
     BLT_STEP_BASE_SPD = 1,    /* 基础速度步长（count/10ms） */
-    BLT_STEP_MOVE_DIST = 50,   /* 移动距离步长（mm） */
+    BLT_STEP_MOVE_DIST = 10,   /* 移动距离步长（mm，即 1cm） */
 } bt_step_int_t;
 
 void on_led1_toggle_cmd(void);
@@ -45,6 +45,7 @@ void on_rotate_ang_up(void);
 void on_rotate_ang_down(void);
 void on_move_start(void);
 void on_rotate_start(void);
+void on_rotate_right(void);
 
 void on_ctrl_toggle(void);
 void on_ff_up(void);
