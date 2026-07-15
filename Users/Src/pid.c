@@ -23,7 +23,7 @@
 #include "error_handler.h"
 
 /**
- * @brief  PID 初始化
+ * @brief  PID 初始化（同时清空历史状态）
  * @param  pid           PID 句柄指针
  * @param  p             比例系数
  * @param  i             积分系数
@@ -34,26 +34,66 @@
  */
 void pid_init(pid_t *pid, float p, float i, float d, float out_max, float integral_max)
 {
+    pid_param_t param;
+
     if (!pid) {
         error_report(ERROR_SOURCE_PID, DRV_ERR_PARAM);
         return;
     }
 
-    pid->kp = p;
-    pid->ki = i;
-    pid->kd = d;
+    param.kp = p;
+    param.ki = i;
+    param.kd = d;
+    param.out_max = out_max;
+    param.integral_max = integral_max;
+
+    pid_set_param(pid, &param);
+    pid_clear(pid);
 
     pid->target = 0.0f;
     pid->actual = 0.0f;
-    pid->error = 0.0f;
-    pid->error_last = 0.0f;
-    pid->actual_last = 0.0f;
-    pid->integral = 0.0f;
-
     pid->out = 0.0f;
-    pid->out_max = out_max;
-    pid->out_min = -out_max;
-    pid->integral_max = integral_max;
+}
+
+/**
+ * @brief  更新 PID 参数（不清空历史状态，运行时热更新用）
+ * @param  pid    PID 句柄指针
+ * @param  param  参数集指针
+ * @retval 无
+ */
+void pid_set_param(pid_t *pid, const pid_param_t *param)
+{
+    if (!pid || !param) {
+        error_report(ERROR_SOURCE_PID, DRV_ERR_PARAM);
+        return;
+    }
+
+    pid->kp = param->kp;
+    pid->ki = param->ki;
+    pid->kd = param->kd;
+    pid->out_max = param->out_max;
+    pid->out_min = -param->out_max;
+    pid->integral_max = param->integral_max;
+}
+
+/**
+ * @brief  读取 PID 当前参数
+ * @param  pid    PID 句柄指针
+ * @param  param  参数集输出指针
+ * @retval 无
+ */
+void pid_get_param(const pid_t *pid, pid_param_t *param)
+{
+    if (!pid || !param) {
+        error_report(ERROR_SOURCE_PID, DRV_ERR_PARAM);
+        return;
+    }
+
+    param->kp = pid->kp;
+    param->ki = pid->ki;
+    param->kd = pid->kd;
+    param->out_max = pid->out_max;
+    param->integral_max = pid->integral_max;
 }
 
 /**

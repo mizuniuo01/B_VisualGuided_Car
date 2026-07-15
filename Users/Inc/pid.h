@@ -3,27 +3,38 @@
 
 #include <stdint.h>
 
+/* PID 参数集（用于批量读写） */
+typedef struct {
+    float kp;           /* 比例系数 */
+    float ki;           /* 积分系数 */
+    float kd;           /* 微分系数 */
+    float out_max;      /* 输出上限（对称限幅） */
+    float integral_max; /* 积分饱和限幅（对称） */
+} pid_param_t;
+
 /* PID 控制器 */
 typedef struct {
-    float kp; /* 比例系数 */
-    float ki; /* 积分系数 */
-    float kd; /* 微分系数 */
+    float kp;
+    float ki;
+    float kd;
 
-    float target; /* 目标值 */
-    float actual; /* 实际值 */
+    float target;
+    float actual;
 
-    float error;       /* 当前误差 */
-    float error_last;  /* 上一次误差 */
-    float actual_last; /* 上一次实际值（微分-on-实际值） */
-    float integral;    /* 积分累加 */
+    float error;
+    float error_last;
+    float actual_last;
+    float integral;
 
-    float out;          /* PID 输出 */
-    float out_max;      /* 输出上限 */
-    float out_min;      /* 输出下限 */
-    float integral_max; /* 积分限幅 */
+    float out;
+    float out_max;
+    float out_min;
+    float integral_max;
 } pid_t;
 
 void pid_init(pid_t *pid, float p, float i, float d, float out_max, float integral_max);
+void pid_set_param(pid_t *pid, const pid_param_t *param);
+void pid_get_param(const pid_t *pid, pid_param_t *param);
 float pid_calc(pid_t *pid, float target, float actual);
 void pid_clear(pid_t *pid);
 

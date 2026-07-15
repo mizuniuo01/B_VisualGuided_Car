@@ -37,6 +37,7 @@
 #include "cam.h"
 #include "motor.h"
 #include "encoder.h"
+#include "motion_control.h"
 
 /* 系统运行标志位 */
 volatile static uint8_t system_led_flag = 0;
@@ -49,8 +50,6 @@ static led_handle_t led4;
 static buzzer_handle_t buzzer;
 static ultrasonic_handle_t ultra;
 static motor_handle_t motor;
-/*static pid_controller_t pid_speed_left;
-static pid_controller_t pid_speed_right;*/
 
 /* getter：只返回指针，不暴露实体 */
 
@@ -89,17 +88,20 @@ motor_handle_t *system_motor(void)
     return &motor;
 }
 
-/*
-pid_controller_t *system_pid_speed_left(void)
+pid_t *system_pid_speed_left(void)
 {
-    return &pid_speed_left;
+    return motion_control_pid_speed_left();
 }
 
-pid_controller_t *system_pid_speed_right(void)
+pid_t *system_pid_speed_right(void)
 {
-    return &pid_speed_right;
+    return motion_control_pid_speed_right();
 }
-*/
+
+pid_t *system_pid_angle(void)
+{
+    return motion_control_pid_angle();
+}
 
 void set_system_led_flag(uint8_t state)
 {
@@ -208,4 +210,6 @@ void system_init(void)
     sensor_init(&hi2c2);
     pwm_init(&htim3);
     encoder_init(&htim2, &htim1);
+
+    motion_control_init();
 }

@@ -9,6 +9,7 @@
 #include "ultrasonic.h"
 #include "motor.h"
 #include "pid.h"
+#include "motion_control.h"
 
 /* GPIO 控制类 */
 led_handle_t *system_led1(void);
@@ -22,8 +23,9 @@ ultrasonic_handle_t *system_ultrasonic(void);
 motor_handle_t *system_motor(void);
 
 /* 算法类 */
-//pid_controller_t *system_pid_speed_left(void);
-//pid_controller_t *system_pid_speed_right(void);
+pid_t *system_pid_speed_left(void);
+pid_t *system_pid_speed_right(void);
+pid_t *system_pid_angle(void);
 
 void system_init(void);
 void set_system_led_flag(uint8_t state);
