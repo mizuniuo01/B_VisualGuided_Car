@@ -33,17 +33,10 @@
 #include "gyroscope.h"
 #include "system.h"
 
-/* 轮胎参数 */
-#define WHEEL_DIAMETER_MM 65.0f
-#define ENCODER_PPR 13
-#define ENCODER_MULTIPLIER 4       /* QEI 四倍频 */
-#define GEAR_RATIO 28
-#define COUNTS_PER_OUTPUT_REV ((float)(ENCODER_PPR * ENCODER_MULTIPLIER * GEAR_RATIO))
-#define WHEEL_CIRCUMFERENCE_MM (3.1415926f * WHEEL_DIAMETER_MM)
-#define COUNTS_PER_MM (COUNTS_PER_OUTPUT_REV / WHEEL_CIRCUMFERENCE_MM)
-
-/* 角度到达死区（度） */
-#define ROTATE_DEAD_ZONE_DEG 3.0f
+/* 编码器→距离换算常量（依赖 encoder_cfg_t 枚举值，无法用宏） */
+static const float COUNTS_PER_OUTPUT_REV =
+    (float)(ENCODER_PPR * ENCODER_MULTIPLIER * GEAR_RATIO);
+static const float COUNTS_PER_MM = COUNTS_PER_OUTPUT_REV / WHEEL_CIRCUMFERENCE_MM;
 
 volatile uint8_t motion_manager_tick_flag = 0;
 
@@ -73,6 +66,8 @@ static uint8_t move_first_tick;
 
 /**
  * @brief  角度环绕：归一到 [-180, 180]
+ * @param  angle  输入角度（度）
+ * @retval 归一化后的角度（[-180, 180]）
  */
 static float mgr_wrap_180(float angle)
 {

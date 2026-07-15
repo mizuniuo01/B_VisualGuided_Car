@@ -3,6 +3,7 @@
  * @brief   顶层控制调度（临时代码：默认普通闭环，蓝牙指令触发运动规划）
  * @author  mizuniuo01
  * @date    2026-07-15
+ * @version 1.0.0
  */
 
 #include "control_manager.h"
@@ -13,26 +14,74 @@
 
 volatile uint8_t control_manager_tick_flag = 0;
 
-static int16_t base_speed    = 10;
-static int16_t diff          = 0;
-static uint8_t angle_enable  = 1;
+static int16_t base_speed = 10;
+static int16_t diff = 0;
+static uint8_t angle_enable = 1;
 static int16_t plan_distance = 500;
-static float  plan_delta     = 90.0f;
-static int16_t plan_speed    = 30;
+static float plan_delta = 90.0f;
+static int16_t plan_speed = 30;
 
-int16_t cm_get_base_speed(void)          { return base_speed; }
-void    cm_set_base_speed(int16_t s)     { base_speed = s; motion_control_set_base_speed(s); }
-float   cm_get_target_angle(void)        { return *motion_control_get_target_angle_ptr(); }
-void    cm_set_target_angle(float a)     { *motion_control_get_target_angle_ptr() = a; motion_control_set_angle(a); }
-int16_t cm_get_diff(void)               { return diff; }
-void    cm_set_diff(int16_t d)          { diff = d; motion_control_set_diff(d); }
-uint8_t cm_get_angle_enable(void)       { return angle_enable; }
-void    cm_set_angle_enable(uint8_t en) { angle_enable = en; motion_control_enable_angle(en); }
-int16_t cm_get_plan_distance(void)      { return plan_distance; }
-void    cm_set_plan_distance(int16_t d) { plan_distance = d; }
-float   cm_get_plan_angle(void)         { return plan_delta; }
-void    cm_set_plan_angle(float a)      { plan_delta = a; }
-int16_t cm_get_plan_speed(void)          { return plan_speed; }
+int16_t control_manager_get_base_speed(void)
+{
+    return base_speed;
+}
+float control_manager_get_target_angle(void)
+{
+    return *motion_control_get_target_angle_ptr();
+}
+int16_t control_manager_get_diff(void)
+{
+    return diff;
+}
+uint8_t control_manager_get_angle_enable(void)
+{
+    return angle_enable;
+}
+int16_t control_manager_get_plan_distance(void)
+{
+    return plan_distance;
+}
+float control_manager_get_plan_angle(void)
+{
+    return plan_delta;
+}
+int16_t control_manager_get_plan_speed(void)
+{
+    return plan_speed;
+}
+
+void control_manager_set_base_speed(int16_t s)
+{
+    base_speed = s;
+    motion_control_set_base_speed(s);
+}
+
+void control_manager_set_target_angle(float a)
+{
+    *motion_control_get_target_angle_ptr() = a;
+    motion_control_set_angle(a);
+}
+
+void control_manager_set_diff(int16_t d)
+{
+    diff = d;
+    motion_control_set_diff(d);
+}
+
+void control_manager_set_angle_enable(uint8_t en)
+{
+    angle_enable = en;
+    motion_control_enable_angle(en);
+}
+
+void control_manager_set_plan_distance(int16_t d)
+{
+    plan_distance = d;
+}
+void control_manager_set_plan_angle(float a)
+{
+    plan_delta = a;
+}
 
 void control_manager_init(void)
 {

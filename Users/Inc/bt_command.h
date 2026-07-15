@@ -1,17 +1,21 @@
 #ifndef BT_COMMAND_H
 #define BT_COMMAND_H
 
-/* 蓝牙调参步长 */
-#define BLT_STEP_SPD_KP     1.0f
-#define BLT_STEP_SPD_KI     0.5f
-#define BLT_STEP_SPD_KD     1.0f
-#define BLT_STEP_ANG_KP     1.0f
-#define BLT_STEP_ANG_KI     0.1f
-#define BLT_STEP_ANG_KD     1.0f
-#define BLT_STEP_BASE_SPD   1
-#define BLT_STEP_TARGET_ANG 5.0f
-#define BLT_STEP_MOVE_DIST  50
-#define BLT_STEP_ROTATE_ANG 5.0f
+/* 蓝牙调参步长（浮点常量，必须用宏） */
+#define BLT_STEP_SPD_KP 1.0f   /* 速度环 KP 步长 */
+#define BLT_STEP_SPD_KI 0.5f   /* 速度环 KI 步长 */
+#define BLT_STEP_SPD_KD 1.0f   /* 速度环 KD 步长 */
+#define BLT_STEP_ANG_KP 1.0f   /* 角度环 KP 步长 */
+#define BLT_STEP_ANG_KI 0.1f   /* 角度环 KI 步长 */
+#define BLT_STEP_ANG_KD 1.0f   /* 角度环 KD 步长 */
+#define BLT_STEP_TARGET_ANG 5.0f   /* 目标角度步长（度） */
+#define BLT_STEP_ROTATE_ANG 5.0f   /* 旋转角度步长（度） */
+
+/* 蓝牙调参步长（整数常量） */
+typedef enum {
+    BLT_STEP_BASE_SPD = 1,    /* 基础速度步长（count/10ms） */
+    BLT_STEP_MOVE_DIST = 50,   /* 移动距离步长（mm） */
+} bt_step_int_t;
 
 void on_led1_toggle_cmd(void);
 

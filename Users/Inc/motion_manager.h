@@ -3,6 +3,18 @@
 
 #include <stdint.h>
 
+/* 编码器参数 */
+typedef enum {
+    ENCODER_PPR = 13,
+    ENCODER_MULTIPLIER = 4,   /* QEI 四倍频 */
+    GEAR_RATIO = 28,
+} encoder_cfg_t;
+
+/* 轮胎与运动参数 */
+#define WHEEL_DIAMETER_MM 65.0f        /* 轮胎直径（mm） */
+#define WHEEL_CIRCUMFERENCE_MM (3.1415926f * WHEEL_DIAMETER_MM) /* 轮周长（mm） */
+#define ROTATE_DEAD_ZONE_DEG 3.0f         /* 角度到达死区（度） */
+
 /* 运动管理层状态 */
 typedef enum {
     MOTION_MANAGER_STATE_NORMAL = 0, /* 普通闭环 */

@@ -11,19 +11,16 @@
 #include "pattern.h"
 #include "ultrasonic.h"
 
-#define FEEDFORWARD_COEFF  0.5f
-#define OBSTACLE_THRESH_MM  50.0f
-
 static perception_data_t data;
 
 void perception_init(void)
 {
-    data.junction_flag  = 0;
-    data.direction      = 0;
-    data.green          = 0;
-    data.diff           = 0;
+    data.junction_flag = 0;
+    data.direction = 0;
+    data.green = 0;
+    data.diff = 0;
     data.all_black_flag = 0;
-    data.obstacle_flag  = 0;
+    data.obstacle_flag = 0;
 }
 
 void perception_task(void)
@@ -38,8 +35,8 @@ void perception_task(void)
         data.junction_flag = 1;
     }
     data.direction = cam.direction;
-    data.green     = cam.green;
-    data.diff      = (int16_t)((float)cam.deviation * FEEDFORWARD_COEFF);
+    data.green = cam.green;
+    data.diff = (int16_t)((float)cam.deviation * FEEDFORWARD_COEFF);
 
     /* 灰度 */
     sensor_raw = sensor_read_data();

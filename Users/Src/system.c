@@ -189,7 +189,7 @@ void system_init(void)
 
     ultrasonic_cfg_t ultra_cfg = {
         .trig_port = GPIOD,
-        .trig_pin  = ultratrig_Pin,
+        .trig_pin = ultratrig_Pin,
     };
     ultrasonic_init(&ultra, &ultra_cfg, &htim4);
 

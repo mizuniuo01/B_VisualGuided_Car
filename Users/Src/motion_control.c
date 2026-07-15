@@ -37,20 +37,6 @@
 #include "system.h"
 #include "tim.h"
 
-/* 速度环 PID 默认参数（编码器 count/10ms → PWM 比较值 0~8400） */
-#define MC_SPEED_PID_KP           40.0f
-#define MC_SPEED_PID_KI           2.0f
-#define MC_SPEED_PID_KD           0.0f
-#define MC_SPEED_PID_OUT_MAX      8400.0f
-#define MC_SPEED_PID_INTEGRAL_MAX 2000.0f
-
-/* 角度环 PID 默认参数（yaw 误差 → 差速 count/10ms） */
-#define MC_ANGLE_PID_KP           2.0f
-#define MC_ANGLE_PID_KI           0.0f
-#define MC_ANGLE_PID_KD           5.0f
-#define MC_ANGLE_PID_OUT_MAX      50.0f
-#define MC_ANGLE_PID_INTEGRAL_MAX 100.0f
-
 volatile uint8_t motion_control_tick_flag = 0;
 
 /* PID 实例（左右速度独立句柄，共享参数） */

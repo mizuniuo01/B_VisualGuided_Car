@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+/* 感知参数 */
+#define FEEDFORWARD_COEFF 0.5f   /* 前馈系数，视觉偏差→差速缩放因子 */
+#define OBSTACLE_THRESH_MM 50.0f  /* 障碍物距离阈值（mm） */
+
 typedef struct {
     uint8_t junction_flag;  /* 1: 是路口, 0: 不是路口 */
     uint8_t direction;      /* 0: 直行, 1: 右转, 2: 左转 */

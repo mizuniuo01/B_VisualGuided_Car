@@ -90,8 +90,8 @@ void display_task(void)
     pid_param_t sp_pid;
     pid_param_t ap_pid;
     motion_manager_state_t ms;
-    int16_t plan_dist = cm_get_plan_distance();
-    float plan_ang = cm_get_plan_angle();
+    int16_t plan_dist = control_manager_get_plan_distance();
+    float plan_ang = control_manager_get_plan_angle();
     pid_get_param(system_pid_angle(), &ap_pid);
     pid_get_param(system_pid_speed_left(), &sp_pid);
     ms = motion_manager_get_state();
@@ -126,7 +126,8 @@ void display_task(void)
     blueteeth_display(0, DISPLAY_LINE_8_Y, "AngPID: P=%.1f I=%.2f D=%.1f", ap_pid.kp,
         ap_pid.ki, ap_pid.kd);
     blueteeth_display(0, DISPLAY_LINE_9_Y, "Ctrl: spd=%d ang=%.0f diff=%d en=%d",
-        cm_get_base_speed(), cm_get_target_angle(), cm_get_diff(), cm_get_angle_enable());
+        control_manager_get_base_speed(), control_manager_get_target_angle(),
+        control_manager_get_diff(), control_manager_get_angle_enable());
     blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s dist=%d ang=%.0f",
         (ms == MOTION_MANAGER_STATE_NORMAL)   ? "NORM"
         : (ms == MOTION_MANAGER_STATE_MOVE)   ? "MOVE"
