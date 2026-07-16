@@ -37,7 +37,7 @@ void perception_task(void)
 
     /* 视觉 */
     cam = cam_get_data();
-    if (cam.direction != 3) {
+    if (cam.direction != DIRECTION_INVALID) {
         data.direction = cam.direction;
     }
     data.green = cam.green;

@@ -34,9 +34,9 @@
 #include "system.h"
 
 /* 编码器→距离换算常量（依赖 encoder_cfg_t 枚举值，无法用宏） */
-static const float COUNTS_PER_OUTPUT_REV =
+static const float counts_per_output_rev =
     (float)(ENCODER_PPR * ENCODER_MULTIPLIER * GEAR_RATIO);
-static const float COUNTS_PER_MM = COUNTS_PER_OUTPUT_REV / WHEEL_CIRCUMFERENCE_MM;
+static const float counts_per_mm = counts_per_output_rev / WHEEL_CIRCUMFERENCE_MM;
 
 volatile uint8_t motion_manager_tick_flag = 0;
 
@@ -141,7 +141,7 @@ void motion_manager_start_move(int16_t distance_mm, int16_t speed)
         return;
     }
 
-    target_total_counts = (float)distance_mm * COUNTS_PER_MM;
+    target_total_counts = (float)distance_mm * counts_per_mm;
     accumulated_counts = 0.0f;
     move_first_tick = 1;
     plan_distance_mm = distance_mm;
@@ -199,10 +199,12 @@ void motion_manager_task(void)
             enc_l = encoder_get_left();
             enc_r = encoder_get_right();
 
-            if (enc_l < 0)
+            if (enc_l < 0) {
                 enc_l = (int16_t)(-enc_l);
-            if (enc_r < 0)
+            }
+            if (enc_r < 0) {
                 enc_r = (int16_t)(-enc_r);
+            }
 
             /* 首次 tick 跳过（10ms 计数尚未稳定） */
             if (move_first_tick) {
@@ -210,7 +212,7 @@ void motion_manager_task(void)
                 break;
             }
 
-            avg_count = (float)(enc_l + enc_r) * 0.5f;
+            avg_count = (float)(enc_l + enc_r) * ENCODER_AVG_FACTOR;
             accumulated_counts += avg_count;
 
             if (accumulated_counts >= target_total_counts) {
@@ -268,7 +270,7 @@ int16_t motion_manager_get_elapsed_mm(void)
     if (state != MOTION_MANAGER_STATE_MOVE) {
         return 0;
     }
-    return (int16_t)(accumulated_counts / COUNTS_PER_MM);
+    return (int16_t)(accumulated_counts / counts_per_mm);
 }
 
 /**
@@ -283,7 +285,7 @@ int16_t motion_manager_get_remaining_mm(void)
     if (state != MOTION_MANAGER_STATE_MOVE) {
         return 0;
     }
-    remaining = (target_total_counts - accumulated_counts) / COUNTS_PER_MM;
+    remaining = (target_total_counts - accumulated_counts) / counts_per_mm;
     if (remaining < 0.0f) {
         remaining = 0.0f;
     }
@@ -328,7 +330,55 @@ void motion_manager_replan_remaining_mm(int16_t remaining_mm)
         return;
     }
 
-    remaining_counts = (float)remaining_mm * COUNTS_PER_MM;
+    remaining_counts = (float)remaining_mm * counts_per_mm;
     target_total_counts = accumulated_counts + remaining_counts;
     plan_distance_mm = remaining_mm;
+}
+
+/**
+ * @brief  角度锁定：读当前 yaw 并设为目标 + enable_angle
+ * @note   用于 control_manager 初始化或状态切换时锁定当前朝向
+ * @param  无
+ * @retval 无
+ */
+void motion_manager_lock_angle(void)
+{
+    gyro_data_t gyro = gyro_get_data();
+
+    *motion_control_get_target_angle_ptr() = gyro.yaw;
+    motion_control_set_angle(gyro.yaw);
+    motion_control_enable_angle(1);
+}
+
+/**
+ * @brief  透传 motion_control_task（control_manager 禁止直接调 motion_control）
+ * @param  无
+ * @retval 无
+ */
+void motion_manager_run_control_task(void)
+{
+    motion_control_task();
+}
+
+/**
+ * @brief  立即停车（不取消运动规划，仅清零速度/diff）
+ * @param  无
+ * @retval 无
+ */
+void motion_manager_halt(void)
+{
+    motion_control_set_base_speed(0);
+    motion_control_set_diff(0);
+}
+
+/**
+ * @brief  停车并保持角度锁定
+ * @param  无
+ * @retval 无
+ */
+void motion_manager_hold_stop(void)
+{
+    motion_control_set_base_speed(0);
+    motion_control_set_diff(0);
+    motion_control_enable_angle(1);
 }

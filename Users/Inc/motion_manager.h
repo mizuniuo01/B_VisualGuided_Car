@@ -10,6 +10,9 @@ typedef enum {
     GEAR_RATIO = 28,
 } encoder_cfg_t;
 
+/* 双轮编码器平均系数 */
+#define ENCODER_AVG_FACTOR 0.5f
+
 /* 轮胎与运动参数 */
 #define WHEEL_DIAMETER_MM 65.0f        /* 轮胎直径（mm） */
 #define WHEEL_CIRCUMFERENCE_MM (3.1415926f * WHEEL_DIAMETER_MM) /* 轮周长（mm） */
@@ -43,5 +46,11 @@ int16_t motion_manager_get_elapsed_mm(void);
 int16_t motion_manager_get_remaining_mm(void);
 void motion_manager_cancel(void);
 void motion_manager_replan_remaining_mm(int16_t remaining_mm);
+
+/* 透传接口（control_manager 禁止直接调 motion_control） */
+void motion_manager_lock_angle(void);
+void motion_manager_run_control_task(void);
+void motion_manager_halt(void);
+void motion_manager_hold_stop(void);
 
 #endif

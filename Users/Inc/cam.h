@@ -21,6 +21,8 @@ typedef enum {
     CAM_ESC_ESC      = 0x5D, /* ESC+5D → 0x7D */
 } cam_frame_byte_t;
 
+#define CAM_FRAME_DATA_LEN 5 /* 帧数据字段数 */
+
 /* 帧解析状态 */
 typedef enum {
     CAM_STATE_WAIT_HEADER = 0,

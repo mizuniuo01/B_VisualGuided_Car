@@ -12,27 +12,27 @@
 
 #include "control_manager.h"
 #include "perception.h"
-#include "motion_control.h"
 #include "motion_manager.h"
-#include "gyroscope.h"
 #include "system.h"
+#include "buzzer.h"
 
+/* TIM6 ISR 每 10ms 置位，control_manager_task 消费并清零 */
 volatile uint8_t control_manager_tick_flag = 0;
 
 /* 参数结构体（保留，bt_command 使用） */
 static control_normal_params_t normal_params = {
-    .base_speed   = CONTROL_DEFAULT_SPEED,
+    .base_speed = CONTROL_DEFAULT_SPEED,
     .angle_enable = 1,
 };
 static control_plan_params_t plan_params = {
     .distance_mm = CONTROL_SEGMENT_DISTANCE_MM,
-    .delta_deg   = 90.0f,
-    .speed       = CONTROL_DEFAULT_SPEED,
+    .delta_deg = CONTROL_DEFAULT_DELTA_DEG,
+    .speed = CONTROL_DEFAULT_SPEED,
 };
 
 /* 顶层状态 */
 static control_manager_state_t state;
-static control_run_substate_t  substate;
+static control_run_substate_t substate;
 
 /* 方向追踪 */
 static uint8_t last_direction; /* 最新有效方向（每 tick 更新） */
@@ -48,10 +48,10 @@ static uint8_t move_pending_start;
 static uint8_t turn_pending_start;
 
 /* 障碍物上下文保存 */
-static uint8_t                obstacle_active;
+static uint8_t obstacle_active;
 static control_run_substate_t pre_obstacle_substate;
-static int16_t                pre_obstacle_remaining_mm;
-static uint8_t                pre_obstacle_direction;
+static int16_t pre_obstacle_remaining_mm;
+static uint8_t pre_obstacle_direction;
 
 /* 黑线等待上下文 */
 static int16_t saved_remaining_mm;
@@ -62,10 +62,8 @@ static uint8_t manual_override;
 /* STOP 标志物请求（当前运动完成后停车） */
 static uint8_t stop_requested;
 
-/* 方向坐标系补偿 */
-#define DIR_NUM 4
-static uint8_t direction_state;       /* 当前朝向：0=后 1=左 2=前 3=右（环形） */
-static int16_t direction_counter[DIR_NUM]; /* 各方向待修正计数（单位=100mm） */
+static uint8_t direction_state;
+static int16_t direction_counter[DIR_NUM];
 
 /**
  * @brief  根据方向获取旋转角度
@@ -74,10 +72,35 @@ static int16_t direction_counter[DIR_NUM]; /* 各方向待修正计数（单位=
  */
 static float get_turn_angle(uint8_t direction)
 {
-    if (direction == 1) {
+    if (direction == DIRECTION_RIGHT) {
         return CONTROL_TURN_ANGLE_RIGHT_DEG;
     }
     return CONTROL_TURN_ANGLE_LEFT_DEG;
+}
+
+/**
+ * @brief  重置追踪状态变量（init 与 set_running 共用）
+ * @param  无
+ * @retval 无
+ */
+static void reset_tracking_state(void)
+{
+    uint8_t i;
+
+    last_direction = 0;
+    prev_all_black_flag = 0;
+    black_line_cooldown_active = 0;
+    black_line_cooldown_remaining = 0;
+    cooldown_prev_elapsed = 0;
+    move_pending_start = 0;
+    turn_pending_start = 0;
+    obstacle_active = 0;
+    manual_override = 0;
+    stop_requested = 0;
+    direction_state = DIR_STATE_FRONT;
+    for (i = 0; i < DIR_NUM; i++) {
+        direction_counter[i] = 0;
+    }
 }
 
 /**
@@ -87,34 +110,15 @@ static float get_turn_angle(uint8_t direction)
  */
 void control_manager_init(void)
 {
-    gyro_data_t gyro;
-    uint8_t i;
-
     state = CONTROL_MANAGER_STATE_STOP;
     substate = CONTROL_RUN_MOVE;
-    last_direction = 0;
-    prev_all_black_flag = 0;
-    black_line_cooldown_active = 0;
-    black_line_cooldown_remaining = 0;
-    cooldown_prev_elapsed = 0;
-    move_pending_start = 0;
-    turn_pending_start = 0;
-    obstacle_active = 0;
     pre_obstacle_substate = CONTROL_RUN_MOVE;
     pre_obstacle_remaining_mm = 0;
     pre_obstacle_direction = 0;
     saved_remaining_mm = 0;
-    manual_override = 0;
-    stop_requested = 0;
-    direction_state = 2; /* 前 */
-    for (i = 0; i < DIR_NUM; i++) {
-        direction_counter[i] = 0;
-    }
 
-    gyro = gyro_get_data();
-    *motion_control_get_target_angle_ptr() = gyro.yaw;
-    motion_control_set_angle(gyro.yaw);
-    motion_control_enable_angle(1);
+    reset_tracking_state();
+    motion_manager_lock_angle();
 }
 
 /**
@@ -136,8 +140,8 @@ void control_manager_task(void)
     perception_task();
     pd = perception_get_data();
 
-    /* 2. 方向追踪（每 tick 更新，direction=3 无效时保持上次值） */
-    if (pd->direction != 3) {
+    /* 2. 方向追踪（每 tick 更新，DIRECTION_INVALID 时保持上次值） */
+    if (pd->direction != DIRECTION_INVALID) {
         last_direction = pd->direction;
     }
 
@@ -150,7 +154,7 @@ void control_manager_task(void)
     if (pd->obstacle_flag) {
         if (!obstacle_active) {
             /* 保存上下文 */
-            pre_obstacle_substate  = substate;
+            pre_obstacle_substate = substate;
             pre_obstacle_direction = last_direction;
 
             if (substate == CONTROL_RUN_MOVE) {
@@ -162,11 +166,9 @@ void control_manager_task(void)
             } else if (substate == CONTROL_RUN_TURN) {
                 motion_manager_cancel();
             }
-            /* BLACK_LINE_WAIT：已停车，无需取消运动 */
+            /* BLACK_LINE_WAIT：已停车 */
 
-            motion_control_set_base_speed(0);
-            motion_control_set_diff(0);
-            motion_control_enable_angle(1);
+            motion_manager_hold_stop();
             buzzer_on(system_buzzer());
             obstacle_active = 1;
         }
@@ -185,10 +187,7 @@ void control_manager_task(void)
                 }
                 move_pending_start = 1;
             } else if (substate == CONTROL_RUN_TURN) {
-                /* 重置目标角度为当前 yaw，避免二次旋转 */
-                float cur_yaw = gyro_get_data().yaw;
-                *motion_control_get_target_angle_ptr() = cur_yaw;
-                motion_control_set_angle(cur_yaw);
+                motion_manager_lock_angle();
                 turn_pending_start = 1;
             }
             /* BLACK_LINE_WAIT：无需操作，继续等待绿灯 */
@@ -200,176 +199,160 @@ void control_manager_task(void)
     /* 4. 状态机推进（障碍物激活时跳过） */
     if (!obstacle_active) {
         switch (state) {
-        case CONTROL_MANAGER_STATE_STOP:
-            if (manual_override) {
-                if (motion_manager_get_state()
-                    == MOTION_MANAGER_STATE_NORMAL) {
-                    manual_override = 0;
-                    motion_control_set_base_speed(0);
-                    motion_control_set_diff(0);
-                }
-            } else {
-                motion_control_set_base_speed(0);
-                motion_control_set_diff(0);
-                motion_control_enable_angle(1);
-            }
-            break;
-
-        case CONTROL_MANAGER_STATE_RUNNING:
-            switch (substate) {
-            case CONTROL_RUN_MOVE:
-                /* 启动延迟处理（障碍物恢复后首次进入） */
-                if (move_pending_start) {
-                    move_pending_start = 0;
-                    motion_manager_start_move(saved_remaining_mm,
-                        plan_params.speed);
-                    break;
-                }
-
-                /* 黑线冷却进度更新（独立累计距离，跨段有效） */
-                if (black_line_cooldown_active) {
-                    int16_t now = motion_manager_get_elapsed_mm();
-                    int16_t step;
-                    if (now < cooldown_prev_elapsed) {
-                        /* move 被重启过，步进 = 当前段已走距离 */
-                        step = now;
-                    } else {
-                        step = now - cooldown_prev_elapsed;
+            case CONTROL_MANAGER_STATE_STOP:
+                if (manual_override) {
+                    if (motion_manager_get_state() == MOTION_MANAGER_STATE_NORMAL) {
+                        manual_override = 0;
+                        motion_manager_halt();
                     }
-                    cooldown_prev_elapsed = now;
-                    if (step > 0) {
-                        if (black_line_cooldown_remaining > step) {
-                            black_line_cooldown_remaining -= step;
-                        } else {
-                            black_line_cooldown_remaining = 0;
-                            black_line_cooldown_active = 0;
+                } else {
+                    motion_manager_hold_stop();
+                }
+                break;
+
+            case CONTROL_MANAGER_STATE_RUNNING:
+                switch (substate) {
+                    case CONTROL_RUN_MOVE:
+                        /* 启动延迟处理（障碍物恢复后首次进入） */
+                        if (move_pending_start) {
+                            move_pending_start = 0;
+                            motion_manager_start_move(saved_remaining_mm,
+                                plan_params.speed);
+                            break;
                         }
-                    }
-                }
 
-                /* 黑线上升沿检测（冷却期内跳过） */
-                if (pd->all_black_flag && !prev_all_black_flag) {
-                    prev_all_black_flag = 1;
-                    if (!black_line_cooldown_active
-                        && motion_manager_get_state()
-                        == MOTION_MANAGER_STATE_MOVE) {
-                        saved_remaining_mm =
-                            motion_manager_get_remaining_mm();
-                        if (saved_remaining_mm > 0) {
-                            /* 激活冷却：记录剩余冷却距离 */
-                            black_line_cooldown_active = 1;
-                            black_line_cooldown_remaining =
-                                BLACK_LINE_COOLDOWN_MM;
-                            cooldown_prev_elapsed =
-                                motion_manager_get_elapsed_mm();
-
-                            if (pd->green) {
-                                /* 绿灯：无缝继续剩余距离 */
-                                motion_manager_replan_remaining_mm(
-                                    saved_remaining_mm);
+                        /* 黑线冷却进度更新（独立累计距离，跨段有效） */
+                        if (black_line_cooldown_active) {
+                            int16_t now = motion_manager_get_elapsed_mm();
+                            int16_t step;
+                            if (now < cooldown_prev_elapsed) {
+                                /* move 被重启过，步进 = 当前段已走距离 */
+                                step = now;
                             } else {
-                                /* 无绿灯：停车等待 */
-                                motion_manager_cancel();
-                                motion_control_set_base_speed(0);
-                                motion_control_set_diff(0);
-                                substate =
-                                    CONTROL_RUN_BLACK_LINE_WAIT;
-                                break;
+                                step = now - cooldown_prev_elapsed;
+                            }
+                            cooldown_prev_elapsed = now;
+                            if (step > 0) {
+                                if (black_line_cooldown_remaining > step) {
+                                    black_line_cooldown_remaining -= step;
+                                } else {
+                                    black_line_cooldown_remaining = 0;
+                                    black_line_cooldown_active = 0;
+                                }
                             }
                         }
-                    }
-                }
-                if (!pd->all_black_flag) {
-                    prev_all_black_flag = 0;
-                }
 
-                /* 距离规划完成检测 */
-                if (motion_manager_get_state()
-                    == MOTION_MANAGER_STATE_NORMAL) {
-                    if (stop_requested) {
-                        control_manager_set_running(0);
-                        break;
-                    }
-                    if (last_direction == 1 || last_direction == 2) {
-                        /* 右转 +1 / 左转 -1（环形 0↔3） */
-                        if (last_direction == 1) {
-                            direction_state =
-                                (direction_state + 1) % DIR_NUM;
-                        } else {
-                            direction_state =
-                                (direction_state + DIR_NUM - 1)
-                                % DIR_NUM;
+                        /* 黑线上升沿检测（冷却期内跳过） */
+                        if (pd->all_black_flag && !prev_all_black_flag) {
+                            prev_all_black_flag = 1;
+                            if (!black_line_cooldown_active &&
+                                motion_manager_get_state() == MOTION_MANAGER_STATE_MOVE) {
+                                saved_remaining_mm = motion_manager_get_remaining_mm();
+                                if (saved_remaining_mm > 0) {
+                                    /* 激活冷却：记录剩余冷却距离 */
+                                    black_line_cooldown_active = 1;
+                                    black_line_cooldown_remaining =
+                                        BLACK_LINE_COOLDOWN_MM;
+                                    cooldown_prev_elapsed =
+                                        motion_manager_get_elapsed_mm();
+
+                                    if (pd->green) {
+                                        /* 绿灯：无缝继续剩余距离 */
+                                        motion_manager_replan_remaining_mm(
+                                            saved_remaining_mm);
+                                    } else {
+                                        /* 无绿灯：停车等待 */
+                                        motion_manager_cancel();
+                                        motion_manager_halt();
+                                        substate = CONTROL_RUN_BLACK_LINE_WAIT;
+                                        break;
+                                    }
+                                }
+                            }
                         }
-                        direction_counter[direction_state]++;
+                        if (!pd->all_black_flag) {
+                            prev_all_black_flag = 0;
+                        }
 
-                        /* 发起旋转 */
-                        motion_manager_start_rotate(
-                            get_turn_angle(last_direction),
-                            plan_params.speed);
-                        substate = CONTROL_RUN_TURN;
-                    } else {
-                        /* 直行（direction=0 或无效默认直行） */
-                        int16_t seg = plan_params.distance_mm;
-                        seg -= direction_counter[direction_state]
-                            * CONTROL_COMPENSATION_UNIT_MM;
-                        direction_counter[direction_state] = 0;
-                        motion_manager_start_move(
-                            seg, plan_params.speed);
-                        /* 保持在 MOVE */
-                    }
-                }
-                break;
+                        /* 距离规划完成检测 */
+                        if (motion_manager_get_state() == MOTION_MANAGER_STATE_NORMAL) {
+                            if (stop_requested) {
+                                control_manager_set_running(0);
+                                break;
+                            }
+                            if (last_direction == DIRECTION_RIGHT ||
+                                last_direction == DIRECTION_LEFT) {
+                                /* 右转 +1 / 左转 -1（环形） */
+                                if (last_direction == DIRECTION_RIGHT) {
+                                    direction_state = (direction_state + 1) % DIR_NUM;
+                                } else {
+                                    direction_state =
+                                        (direction_state + DIR_NUM - 1) % DIR_NUM;
+                                }
+                                direction_counter[direction_state]++;
 
-            case CONTROL_RUN_TURN:
-                /* 启动延迟处理（障碍物恢复后首次进入） */
-                if (turn_pending_start) {
-                    turn_pending_start = 0;
-                    motion_manager_start_rotate(
-                        get_turn_angle(last_direction),
-                        plan_params.speed);
-                    break;
-                }
-
-                /* 旋转完成检测 */
-                if (motion_manager_get_state()
-                    == MOTION_MANAGER_STATE_NORMAL) {
-                    if (stop_requested) {
-                        control_manager_set_running(0);
+                                /* 发起旋转 */
+                                motion_manager_start_rotate(
+                                    get_turn_angle(last_direction), plan_params.speed);
+                                substate = CONTROL_RUN_TURN;
+                            } else {
+                                /* 直行（direction=0 或无效默认直行） */
+                                int16_t seg = plan_params.distance_mm;
+                                seg -= direction_counter[direction_state] *
+                                       CONTROL_COMPENSATION_UNIT_MM;
+                                direction_counter[direction_state] = 0;
+                                motion_manager_start_move(seg, plan_params.speed);
+                                /* 保持在 MOVE */
+                            }
+                        }
                         break;
-                    }
-                    /* 旋转完成，计算补偿后前进距离 */
-                    saved_remaining_mm = plan_params.distance_mm;
-                    saved_remaining_mm -= direction_counter[direction_state]
-                        * CONTROL_COMPENSATION_UNIT_MM;
-                    direction_counter[direction_state] = 0;
-                    move_pending_start = 1;
-                    substate = CONTROL_RUN_MOVE;
-                }
-                break;
 
-            case CONTROL_RUN_BLACK_LINE_WAIT:
-                /* 确保停车 */
-                motion_control_set_base_speed(0);
-                motion_control_set_diff(0);
-                motion_control_enable_angle(1);
+                    case CONTROL_RUN_TURN:
+                        /* 启动延迟处理（障碍物恢复后首次进入） */
+                        if (turn_pending_start) {
+                            turn_pending_start = 0;
+                            motion_manager_start_rotate(get_turn_angle(last_direction),
+                                plan_params.speed);
+                            break;
+                        }
 
-                /* 等待绿灯 */
-                if (pd->green) {
-                    motion_manager_start_move(saved_remaining_mm,
-                        plan_params.speed);
-                    substate = CONTROL_RUN_MOVE;
+                        /* 旋转完成检测 */
+                        if (motion_manager_get_state() == MOTION_MANAGER_STATE_NORMAL) {
+                            if (stop_requested) {
+                                control_manager_set_running(0);
+                                break;
+                            }
+                            /* 旋转完成，计算补偿后前进距离 */
+                            saved_remaining_mm = plan_params.distance_mm;
+                            saved_remaining_mm -= direction_counter[direction_state] *
+                                                  CONTROL_COMPENSATION_UNIT_MM;
+                            direction_counter[direction_state] = 0;
+                            move_pending_start = 1;
+                            substate = CONTROL_RUN_MOVE;
+                        }
+                        break;
+
+                    case CONTROL_RUN_BLACK_LINE_WAIT:
+                        /* 确保停车 */
+                        motion_manager_hold_stop();
+
+                        /* 等待绿灯 */
+                        if (pd->green) {
+                            motion_manager_start_move(saved_remaining_mm,
+                                plan_params.speed);
+                            substate = CONTROL_RUN_MOVE;
+                        }
+                        break;
+
+                    default:
+                        substate = CONTROL_RUN_MOVE;
+                        break;
                 }
                 break;
 
             default:
-                substate = CONTROL_RUN_MOVE;
+                state = CONTROL_MANAGER_STATE_STOP;
                 break;
-            }
-            break;
-
-        default:
-            state = CONTROL_MANAGER_STATE_STOP;
-            break;
         }
     }
 
@@ -378,12 +361,11 @@ void control_manager_task(void)
 
     /* 6. 障碍物二次安全覆盖（防止 motion_manager 恢复非零速度） */
     if (obstacle_active) {
-        motion_control_set_base_speed(0);
-        motion_control_set_diff(0);
+        motion_manager_halt();
     }
 
     /* 7. 底层闭环控制 */
-    motion_control_task();
+    motion_manager_run_control_task();
 }
 
 /**
@@ -395,43 +377,20 @@ void control_manager_set_running(uint8_t run)
 {
     if (run) {
         if (state == CONTROL_MANAGER_STATE_STOP) {
-            gyro_data_t gyro;
-            uint8_t i;
-
             state = CONTROL_MANAGER_STATE_RUNNING;
             substate = CONTROL_RUN_MOVE;
-            last_direction = 0;
-            prev_all_black_flag = 0;
-            black_line_cooldown_active = 0;
-            black_line_cooldown_remaining = 0;
-            cooldown_prev_elapsed = 0;
-            move_pending_start = 0;
-            turn_pending_start = 0;
-            obstacle_active = 0;
-            manual_override = 0;
-            stop_requested = 0;
-            direction_state = 2;
-            for (i = 0; i < DIR_NUM; i++) {
-                direction_counter[i] = 0;
-            }
             saved_remaining_mm = plan_params.distance_mm;
 
-            /* 锁定当前角度 */
-            gyro = gyro_get_data();
-            *motion_control_get_target_angle_ptr() = gyro.yaw;
-            motion_control_set_angle(gyro.yaw);
-            motion_control_enable_angle(1);
+            reset_tracking_state();
+            motion_manager_lock_angle();
 
-            /* 启动首段距离规划 */
-            motion_manager_start_move(plan_params.distance_mm,
-                plan_params.speed);
+            motion_manager_start_move(plan_params.distance_mm, plan_params.speed);
         }
     } else {
         state = CONTROL_MANAGER_STATE_STOP;
         substate = CONTROL_RUN_MOVE;
         motion_manager_cancel();
-        motion_control_set_base_speed(0);
-        motion_control_set_diff(0);
+        motion_manager_halt();
     }
 }
 

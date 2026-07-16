@@ -6,6 +6,12 @@
 /* 感知参数 */
 #define FEEDFORWARD_COEFF_DEFAULT -0.0f /* 前馈系数默认值，视觉偏差→差速（正偏差→向右修→负diff） */
 #define OBSTACLE_THRESH_MM 100.0f  /* 障碍物距离阈值（mm） */
+typedef enum {
+    DIRECTION_STRAIGHT = 0,
+    DIRECTION_RIGHT    = 1,
+    DIRECTION_LEFT     = 2,
+    DIRECTION_INVALID  = 3,
+} direction_t;
 
 typedef struct {
     uint8_t direction;      /* 0: 直行, 1: 右转, 2: 左转 */

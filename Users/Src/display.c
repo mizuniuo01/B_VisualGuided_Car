@@ -41,8 +41,12 @@
 #include "motion_control.h"
 #include "perception.h"
 #include "control_manager.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+#define SENSOR_STR_BUF_SIZE 30 /* 传感器字符串缓冲区大小 */
+#define SENSOR_BIT_COUNT 8     /* 传感器位数 */
 
 volatile uint8_t display_refresh_flag;
 
@@ -77,27 +81,41 @@ void display_show_error(const char *format, ...)
  */
 void display_task(void)
 {
+    gyro_data_t gyro;
+    ultrasonic_data_t ultra;
+    uint8_t sensor_data;
+    cam_data_t cam;
+    int16_t encoder_left;
+    int16_t encoder_right;
+    pid_param_t sp_pid;
+    pid_param_t ap_pid;
+    const control_normal_params_t *np;
+    const control_plan_params_t *pp;
+    float target_angle;
+    const perception_data_t *perception;
+    char sensor_str[SENSOR_STR_BUF_SIZE];
+    int i;
+
     if (!display_refresh_flag) {
         return;
     }
     display_refresh_flag = 0;
 
-    gyro_data_t gyro = gyro_get_data();
-    ultrasonic_data_t ultra = ultrasonic_get_data();
-    uint8_t sensor_data = sensor_read_data();
-    cam_data_t cam = cam_get_data();
-    int16_t encoder_left = encoder_get_left();
-    int16_t encoder_right = encoder_get_right();
-    pid_param_t sp_pid;
-    pid_param_t ap_pid;
-    const control_normal_params_t *np = control_manager_get_normal_params();
-    const control_plan_params_t *pp = control_manager_get_plan_params();
-    float target_angle = *motion_control_get_target_angle_ptr();
+    gyro = gyro_get_data();
+    ultra = ultrasonic_get_data();
+    sensor_data = sensor_read_data();
+    cam = cam_get_data();
+    encoder_left = encoder_get_left();
+    encoder_right = encoder_get_right();
+    np = control_manager_get_normal_params();
+    pp = control_manager_get_plan_params();
+    target_angle = *motion_control_get_target_angle_ptr();
     pid_get_param(system_pid_angle(), &ap_pid);
     pid_get_param(system_pid_speed_left(), &sp_pid);
-    perception_data_t *perception = perception_get_data();
-    char sensor_str[30] = {0};
-    for (int i = 0; i < 8; i++) {
+    perception = perception_get_data();
+
+    sensor_str[0] = '\0';
+    for (i = 0; i < SENSOR_BIT_COUNT; i++) {
         if (sensor_data & (1 << i)) {
             strcat(sensor_str, "1");
         } else {
