@@ -4,22 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-基于 STM32F407XX 的视觉引导小车，使用 STM32CubeMX 生成 HAL 代码，CMake + Ninja 构建。
+基于 STM32F407XX 的视觉引导小车（26 电赛训练赛 B 题），使用 STM32CubeMX 生成 HAL 代码，CMake + Ninja 构建。
 
-**当前阶段**：驱动层全部完成，motion_control（速度环+角度环）已完成并通过测试，即将进入 motion_manager 层设计。
+**当前阶段**：v1.0.0 完成，所有模块已实现并通过测试。
 
 ## 构建命令
 
 ```bash
-# 配置（Debug）
 cmake --preset Debug
-
-# 构建
 cmake --build --preset Debug
-
-# 或手动指定
-cmake -B build/Debug -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/Debug
 ```
 
 工具链：`arm-none-eabi-gcc`（需在 PATH 中）。目标：Cortex-M4 + FPU hard float。
@@ -27,83 +20,93 @@ cmake --build build/Debug
 ## 架构分层
 
 ```
-Users/           ← 应用层：驱动模块（motor, encoder, cam, gyroscope 等）+ 控制模块（motion_control）
-Core/            ← STM32CubeMX 生成的 HAL 初始化代码（main.c, gpio.c, stm32f4xx_it.c 等）
-Drivers/CMSIS/   ← ARM CMSIS
-Drivers/STM32F4xx_HAL_Driver/ ← STM32 HAL 库
-cmake/            ← 工具链文件和 CubeMX 构建集成
+vision/           ← MaixCAM 视觉代码 + YOLOv5 模型（Python）
+Users/            ← 应用层（驱动 + 控制）
+Core/             ← STM32CubeMX 生成（HAL init、ISR、main）
+Drivers/          ← CMSIS + STM32 HAL 库
 ```
 
-- **`Users/Inc` / `Users/Src`**：所有应用模块。每个模块有 `.h`（接口）和 `.c`（实现）。模块间通过 `system.h/c` 的 getter 函数获取句柄，不直接 `extern` 全局变量。
-- **`Core/Src/main.c`**：平台初始化（HAL_Init、时钟、GPIO）+ 主循环 + HAL 回调集中处理。
-- **中断服务函数** 写在 `Core/Src/stm32f4xx_it.c`，回调实现在对应 `Users/` 模块中。
-- **控制分层**：`control_manager` → `perception` → `motion_manager` → `motion_control` → `driver`（详见 `docs/Control_Structure.md`）
+- **`Users/Inc` / `Users/Src`**：所有应用模块。模块间通过 `system.h/c` 的 getter 获取句柄，不直接 `extern`。
+- **`Core/Src/main.c`**：平台初始化 + 主循环（见下方）+ HAL 回调集中处理。
+- **控制分层**：`control_manager` → `perception` → `motion_manager` → `motion_control` → `driver`
+
+### 主循环任务顺序
+
+```
+gyro_task → ultrasonic_task → cam_task → sensor_task
+  → blueteeth_task → display_task → control_manager_task
+```
+
+`control_manager_task` 内部串联：perception → 状态机 → motion_manager → motion_control。
 
 ## 硬件资源分配
 
 | 外设 | 引脚 | 用途 | 模式 |
 |------|------|------|------|
-| TIM1 | PE9 (CH1), PE11 (CH2) | 左编码器 | QEI 四倍频 |
-| TIM2 | PA0 (CH1), PA1 (CH2) | 右编码器 | QEI 四倍频 |
-| TIM3 | PA6 (CH1), PA7 (CH2) | 电机 PWM | PWM, ARR=8400 |
-| TIM4 | PD15 (CH4) | 超声波测距 | 输入捕获 |
+| TIM1 | PE9 CH1, PE11 CH2 | 左编码器 | QEI |
+| TIM2 | PA0 CH1, PA1 CH2 | 右编码器 | QEI |
+| TIM3 | PA6 CH1, PA7 CH2 | 电机 PWM | PWM, ARR=8400 |
+| TIM4 | PD15 CH4 | 超声波 | 输入捕获 |
 | TIM6 | — | 系统 tick 1ms | 基础定时器 |
-| USART1 | PA9 (TX), PA10 (RX) | 蓝牙通信 | DMA+IDLE |
-| USART3 | PB10 (TX), PB11 (RX) | 视觉模块 MaixCAM | DMA+IDLE |
-| USART6 | PC6 (TX), PC7 (RX) | 陀螺仪 | DMA+IDLE |
-| I2C2 | PB10 (SCL), PB11 (SDA) | 八路灰度传感器 | DMA, 100kHz |
-| I2C3 | PA8 (SCL), PC9 (SDA) | OLED 显示屏 | 100kHz |
-| GPIO | PA4 | 左电机 nSLEEP | 推挽输出 |
-| GPIO | PA5 | 左电机 PH + 蜂鸣器 | 推挽输出 |
-| GPIO | PC4 | 右电机 PH | 推挽输出 |
-| GPIO | PC5 | 右电机 nSLEEP | 推挽输出 |
+| USART1 | PA9 TX, PA10 RX | 蓝牙 | DMA+IDLE |
+| USART3 | PB10 TX, PB11 RX | MaixCAM | DMA+IDLE |
+| USART6 | PC6 TX, PC7 RX | 陀螺仪 | DMA+IDLE |
+| I2C2 | PB10 SCL, PB11 SDA | 灰度传感器 | DMA, 100kHz |
+| I2C3 | PA8 SCL, PC9 SDA | OLED | 100kHz |
+| GPIO | PA4/PA5 | 左电机 nSLEEP/PH + 蜂鸣器 | 推挽 |
+| GPIO | PC4/PC5 | 右电机 PH/nSLEEP | 推挽 |
 | IWDG | — | 看门狗 | 主循环刷新 |
 
 ## 模块职责
 
-| 模块 | 职责 | 状态 |
-|------|------|:---:|
-| `motor` | DRV8874 双路直流有刷电机驱动，PH/EN 模式 PWM 控制（TIM3 CH1/CH2） | ✓ |
-| `encoder` | QEI 编码器（TIM1 左 / TIM2 右），13PPR 四倍频 52 counts/rev，1:28 减速 | ✓ |
-| `pwm` | PWM 比较值薄封装（`__HAL_TIM_SET_COMPARE`） | ✓ |
-| `cam` | MaixCAM 视觉模块，USART3 DMA+IDLE+环形 FIFO，0xFF/0xFE 帧协议 | ✓ |
-| `gyroscope` | 姿态传感器 UART6 DMA，输出 roll/pitch/yaw | ✓ |
-| `blueteeth` | 蓝牙串口 USART1，`@...#` 帧协议，双向 DMA+FIFO | ✓ |
-| `ultrasonic` | 超声波测距，TIM4 CH4 输入捕获 | ✓ |
-| `sensor` | 感为科技八路灰度传感器，I2C2 DMA，地址 0x4C，命令 0xDD | ✓ |
-| `display` | 蓝牙仪表盘，汇总各模块数据通过 `blueteeth_display()` 输出到手机 | ✓ |
-| `error_handler` | 集中错误管理：传输→上报→处理 三层架构 | ✓ |
-| `buzzer` / `led` | 基础 GPIO 控制外设 | ✓ |
-| `system` | 硬件句柄注册中心，所有共享句柄的唯一定义处 | ✓ |
-| `pid` | PID 控制器（微分-on-实际值，含参数结构体 set/get 接口） | ✓ |
-| `motion_control` | 底层闭环控制：角度环 + 双轮速度环，10ms task，yaw unwrap | ✓ |
-| `motion_manager` | 运动控制管理层：控制模式管理、运动规划、目标生成 | 待实现 |
-| `control_manager` | 顶层状态机与任务调度 | 待实现 |
-| `perception` | 环境感知与传感器数据融合 | 待实现 |
+| 模块 | 职责 |
+|------|------|
+| `motor` | DRV8874 双路电机，PH/EN PWM 控制 |
+| `encoder` | QEI 编码器，13PPR × 4 × 1:28 |
+| `cam` | MaixCAM USART3 DMA+IDLE, 5 字节帧协议 |
+| `gyroscope` | JY901S 姿态传感器 UART6 DMA |
+| `blueteeth` | 蓝牙 USART1 DMA+IDLE 双向 FIFO |
+| `ultrasonic` | 超声波 TIM4 输入捕获 |
+| `sensor` | 八路灰度 I2C2 DMA, 0x4C |
+| `display` | 蓝牙仪表盘 12 行数据输出 |
+| `error_handler` | 三层错误管理（传输/上报/处理） |
+| `buzzer`/`led`/`pwm` | 基础外设控制 |
+| `system` | 硬件句柄注册中心 |
+| `pid` | PID 控制器（微分-on-实际值） |
+| `motion_control` | 角度环 + 双轮速度环, 10ms, yaw unwrap |
+| `motion_manager` | 运动控制入口：普通闭环 + 距离/角度规划。对外提供 `halt`/`hold_stop`/`lock_angle` 透传，`control_manager` 禁止直接调 `motion_control` |
+| `control_manager` | 顶层状态机：STOP/RUNNING + MOVE/TURN/BLACK_LINE_WAIT 子状态。方向坐标系补偿（0-3 环形）、黑线冷却、障碍物优先、STOP 标志 |
+| `perception` | 视觉 + 灰度 + 超声波数据融合。direction 过滤（3→保持旧值）、黑线/障碍物/STOP 标志位 |
+
+## 关键设计决策
+
+- **分段循环**：固定 685mm 段 × direction 驱动，段末检测方向 → 直行继续 / 转弯
+- **方向补偿**：坐标系 0-3 环形状态机，右转 +1 / 左转 -1，每方向独立计数器。当前方向有累积时下一段减去 `counter × 100mm`。自动修正转弯漂移
+- **黑线冷却**：独立距离累计 500mm，跨段有效，过滤十字路口出口侧黑线
+- **障碍物**：上升沿保存上下文 → emergency stop + 蜂鸣器 → 下降沿恢复
+- **STOP 标志**：YOLO 检测 → `stop_requested` → 当前段完成后 → STOP
+- **手动指令**：`manual_override` 标志位，STOP 状态下跳过每 tick 速度清零
 
 ## 核心设计约定
 
 以下来自 `docs/CODING_STANDARD.md`，严格遵守 BARR-C:2018：
 
-- **命名**：函数/变量 `snake_case`，类型 `snake_case_t`，宏 `UPPER_SNAKE_CASE`。所有公开标识符以模块名为前缀（如 `motor_set_speed`）。
-- **非阻塞**：严禁 `HAL_Delay()` 或死循环等标志位。统一 tick 调度：硬件定时器 ISR 置 `volatile uint8_t xxx_tick_flag`，主循环调 `xxx_task()`。
-- **状态机**：有状态的外设用 `typedef enum` 定义状态，在 `xxx_task()` 中 `switch` 推进。
-- **UART 通信**：DMA + IDLE 中断 + 环形 FIFO。ISR 写 FIFO，task 消费。
-- **句柄模式**：默认多实例设计，句柄由调用者分配。模块内部状态 `static`。
-- **错误处理**：驱动出错调 `error_report(source, code)`，error_handler 统一上报和恢复。
-- **禁止项**：`malloc`/`free`、递归、VLA、`printf` 在 ISR 中、`goto` 向前跳转、条件中赋值。
-- **注释**：中文。`.c` 文件头 + 每个函数 `@brief/@param/@retval`。`.h` 文件不写函数文档注释。
-- **花括号**：控制流 K&R 风格，函数 Allman 风格。
-- **缩进**：4 空格，列宽 90。
+- **命名**：函数/变量 `snake_case`，类型 `snake_case_t`，宏 `UPPER_SNAKE_CASE`
+- **非阻塞**：严禁 `HAL_Delay()`，统一 tick 调度（TIM6 ISR 置 flag，主循环消费）
+- **状态机**：有状态模块用 `typedef enum` + `switch` 推进
+- **UART 通信**：DMA + IDLE + 环形 FIFO
+- **句柄模式**：默认多实例，内部状态 `static`，通过 `system.h/c` getter 共享
+- **禁止项**：`malloc`/`free`、递归、VLA、ISR 中 `printf`、`goto` 向前跳转、条件中赋值
+- **注释**：中文。`.c` 有 `@brief/@param/@retval`，`.h` 无函数文档注释
+- **格式**：K&R 花括号，4 空格缩进，90 列宽
+- **宏/enum**：≤3 个相关值用 `#define`，>3 个用 `typedef enum`
 
-详细规范见 `docs/CODING_STANDARD.md`，开发流程见 `docs/Development_Workflow.md`。
+## CubeMX 代码修改
 
-## 修改 CubeMX 生成的代码
-
-CubeMX 重新生成会覆盖 `Core/` 下的内容（带 `USER CODE BEGIN/END` 标记的区域保留）。用户代码应放在 `Users/` 目录下，通过 `CMakeLists.txt` 顶层 `target_sources` 添加。
+CubeMX 重新生成会覆盖 `Core/`（`USER CODE BEGIN/END` 区域保留）。用户代码放 `Users/`。
 
 ## 添加新模块
 
-1. 在 `Users/Inc/` 和 `Users/Src/` 创建 `.h`/`.c`
-2. 在顶层 `CMakeLists.txt` 的 `target_sources` 中添加 `.c` 文件
-3. 如果模块有共享句柄：在 `system.h` 声明 getter，在 `system.c` 定义句柄和 getter
+1. `Users/Inc/` + `Users/Src/` 创建 `.h/.c`
+2. 顶层 `CMakeLists.txt` 的 `target_sources` 添加 `.c`
+3. 共享句柄：`system.h` 声明 getter → `system.c` 定义

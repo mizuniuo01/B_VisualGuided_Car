@@ -46,14 +46,13 @@
 ### 视觉 (MaixCAM)
 - YOLOv5 推理: W/R/L 方向标志 + Y 绿灯 + STOP 停车标志
 - 独立 debounce: direction/green 与 stop 各自防抖
-- center contour scan 巡线 + junction detector 路口检测
+- center contour scan 赛道扫描 + junction detector 路口检测
 - 5 字节帧协议: [is_junction, direction, green, stop, deviation]
 - byte stuffing 转义: 0xFF/0xFE/0x7D
 
 ### 蓝牙调参
-- 22 条指令: 速度/角度 PID 6 项, base_speed/target_angle 调参, move/rotate 手动控制
+- 20 条指令: 速度/角度 PID 6 项, base_speed/target_angle 调参, move/rotate 手动控制
 - ctrl_toggle: STOP/RUNNING 状态切换
-- ff_up/down: 视觉前馈系数调节
 
 ### 工程化
 - CMake + Ninja: arm-none-eabi-gcc, Cortex-M4 + FPU hard float

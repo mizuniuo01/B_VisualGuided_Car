@@ -108,6 +108,8 @@ cmake --build --preset Debug
 
 产物: `build/Debug/VisualGuided_Car.elf` / `.bin` / `.hex`
 
+开发模板：[stm32-vscode-template](https://github.com/mizuniuo01/stm32-vscode-template)
+
 ### 烧录
 
 使用 ST-Link / J-Link 或串口 ISP 烧录 `build/Debug/VisualGuided_Car.bin` 到 `0x08000000`。
@@ -127,7 +129,6 @@ cmake --build --preset Debug
 | `rotate_start` | 手动旋转 |
 | `rotate_right` | 右转 90° |
 | `ctrl_toggle` | STOP/RUNNING 切换 |
-| `ff_up/down` | 视觉前馈系数 |
 
 ---
 
@@ -139,6 +140,8 @@ cmake --build --preset Debug
 ├── Users/
 │   ├── Inc/           ← 应用层头文件 (motor, pid, control_manager, ...)
 │   └── Src/           ← 应用层实现
+├── vision/            ← MaixCAM 视觉代码与模型
+│   └── models/        ← YOLOv5 模型文件
 ├── cmake/             ← 工具链 cmake 文件
 ├── docs/              ← 协议、设计文档、任务说明
 ├── build/             ← 构建产物 (gitignore)
@@ -166,7 +169,7 @@ cmake --build --preset Debug
 | 旋转规划 | ✓ | gyro yaw 死区 ±3° |
 | 方向补偿 | ✓ | 坐标系状态机, 自动修正转弯漂移 |
 | 蓝牙仪表盘 | ✓ | 江协科技小程序, 12 行数据 |
-| 蓝牙调参 | ✓ | 22 条指令, 实时调 PID/速度/角度 |
+| 蓝牙调参 | ✓ | 20 条指令, 实时调 PID/速度/角度 |
 | 看门狗 | ✓ | IWDG, 主循环统一喂狗 |
 | 错误处理 | ✓ | 三层架构: 传输/上报/处理 |
 
