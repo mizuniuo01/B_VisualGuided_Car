@@ -59,6 +59,12 @@ static int16_t saved_remaining_mm;
 /* 手动指令标志（STOP 状态下跳过每 tick 速度清零） */
 static uint8_t manual_override;
 
+/* 黑线路口后转弯缩减标志 */
+static uint8_t post_black_line_turn;
+
+/* STOP 标志物请求（当前运动完成后停车） */
+static uint8_t stop_requested;
+
 /**
  * @brief  根据方向获取旋转角度
  * @param  direction  方向（1=右转, 2=左转）
@@ -96,6 +102,8 @@ void control_manager_init(void)
     pre_obstacle_direction = 0;
     saved_remaining_mm = 0;
     manual_override = 0;
+    post_black_line_turn = 0;
+    stop_requested = 0;
 
     gyro = gyro_get_data();
     *motion_control_get_target_angle_ptr() = gyro.yaw;
@@ -125,6 +133,11 @@ void control_manager_task(void)
     /* 2. 方向追踪（每 tick 更新，direction=3 无效时保持上次值） */
     if (pd->direction != 3) {
         last_direction = pd->direction;
+    }
+
+    /* 2.5 STOP 标志物检测 */
+    if (pd->stop_flag) {
+        stop_requested = 1;
     }
 
     /* 3. 障碍物处理（最高优先级——上升沿保存+停车，下降沿恢复） */
@@ -239,6 +252,12 @@ void control_manager_task(void)
                         if (saved_remaining_mm > 0) {
                             int16_t new_rem;
 
+                            /* 转弯标志：路口后首次前进缩短 15cm */
+                            if (last_direction == 1
+                                || last_direction == 2) {
+                                post_black_line_turn = 1;
+                            }
+
                             /* 激活冷却：记录剩余冷却距离 */
                             black_line_cooldown_active = 1;
                             black_line_cooldown_remaining =
@@ -276,6 +295,10 @@ void control_manager_task(void)
                 /* 距离规划完成检测 */
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
+                    if (stop_requested) {
+                        control_manager_set_running(0);
+                        break;
+                    }
                     if (last_direction == 1 || last_direction == 2) {
                         /* 左转或右转 */
                         motion_manager_start_rotate(
@@ -305,8 +328,23 @@ void control_manager_task(void)
                 /* 旋转完成检测 */
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
+                    if (stop_requested) {
+                        control_manager_set_running(0);
+                        break;
+                    }
                     /* 旋转完成，开始前进 */
-                    saved_remaining_mm = plan_params.distance_mm;
+                    if (post_black_line_turn) {
+                        post_black_line_turn = 0;
+                        saved_remaining_mm =
+                            plan_params.distance_mm
+                            - BLACK_LINE_TURN_REDUCE_MM;
+                        if (saved_remaining_mm < 1) {
+                            saved_remaining_mm = 1;
+                        }
+                    } else {
+                        saved_remaining_mm =
+                            plan_params.distance_mm;
+                    }
                     move_pending_start = 1;
                     substate = CONTROL_RUN_MOVE;
                 }
@@ -378,6 +416,8 @@ void control_manager_set_running(uint8_t run)
             turn_pending_start = 0;
             obstacle_active = 0;
             manual_override = 0;
+            post_black_line_turn = 0;
+            stop_requested = 0;
             saved_remaining_mm = plan_params.distance_mm;
 
             /* 锁定当前角度 */

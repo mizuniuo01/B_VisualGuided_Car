@@ -16,6 +16,9 @@
 /* 黑线冷却距离 50cm */
 #define BLACK_LINE_COOLDOWN_MM 500
 
+/* 黑线路口转弯后额外缩减距离（mm） */
+#define BLACK_LINE_TURN_REDUCE_MM 150
+
 /* 默认移动速度（count/10ms） */
 #define CONTROL_DEFAULT_SPEED 20
 
