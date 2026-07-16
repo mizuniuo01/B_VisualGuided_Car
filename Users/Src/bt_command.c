@@ -12,7 +12,6 @@
 #include "pid.h"
 #include "motion_control.h"
 #include "motion_manager.h"
-#include "perception.h"
 #include "control_manager.h"
 
 /* ==================== 速度 PID ==================== */
@@ -337,24 +336,3 @@ void on_ctrl_toggle(void)
     }
 }
 
-/* ==================== 前馈系数 ==================== */
-
-/**
- * @brief  前馈系数增大
- * @param  无
- * @retval 无
- */
-void on_ff_up(void)
-{
-    perception_set_feedforward(perception_get_feedforward() + BLT_STEP_FEEDFWD);
-}
-
-/**
- * @brief  前馈系数减小
- * @param  无
- * @retval 无
- */
-void on_ff_down(void)
-{
-    perception_set_feedforward(perception_get_feedforward() - BLT_STEP_FEEDFWD);
-}

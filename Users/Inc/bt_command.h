@@ -10,7 +10,6 @@
 #define BLT_STEP_ANG_KD 1.0f   /* 角度环 KD 步长 */
 #define BLT_STEP_TARGET_ANG 5.0f   /* 目标角度步长（度） */
 #define BLT_STEP_ROTATE_ANG 5.0f   /* 旋转角度步长（度） */
-#define BLT_STEP_FEEDFWD    0.1f   /* 前馈系数步长 */
 
 /* 蓝牙调参步长（整数常量） */
 typedef enum {
@@ -48,7 +47,5 @@ void on_rotate_start(void);
 void on_rotate_right(void);
 
 void on_ctrl_toggle(void);
-void on_ff_up(void);
-void on_ff_down(void);
 
 #endif

@@ -143,8 +143,8 @@ void display_task(void)
         sp_pid.ki, sp_pid.kd);
     blueteeth_display(0, DISPLAY_LINE_8_Y, "AngPID: P=%.1f I=%.2f D=%.1f", ap_pid.kp,
         ap_pid.ki, ap_pid.kd);
-    blueteeth_display(0, DISPLAY_LINE_9_Y, "Ctrl: spd=%d ang=%.0f diff=%d en=%d",
-        np->base_speed, target_angle, perception->diff, np->angle_enable);
+    blueteeth_display(0, DISPLAY_LINE_9_Y, "Ctrl: spd=%d ang=%.0f en=%d",
+        np->base_speed, target_angle, np->angle_enable);
     blueteeth_display(0, DISPLAY_LINE_10_Y, "Plan: %s/%s dist=%d ang=%.0f spd=%d",
         (control_manager_get_state() == CONTROL_MANAGER_STATE_STOP) ? "STOP" : "RUN",
         (control_manager_get_substate() == CONTROL_RUN_MOVE)             ? "MOVE"
