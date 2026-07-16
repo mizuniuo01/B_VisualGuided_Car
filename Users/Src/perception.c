@@ -18,6 +18,7 @@ void perception_init(void)
 {
     data.direction = 0;
     data.green = 0;
+    data.stop_flag = 0;
     data.diff = 0;
     data.all_black_flag = 0;
     data.obstacle_flag = 0;
@@ -40,6 +41,7 @@ void perception_task(void)
         data.direction = cam.direction;
     }
     data.green = cam.green;
+    data.stop_flag = cam.stop;
     data.diff = (int16_t)((float)cam.deviation * feedforward_coeff);
 
     /* 灰度 */

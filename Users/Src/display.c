@@ -135,7 +135,7 @@ void display_task(void)
                                                                           : "???",
         pp->distance_mm, pp->delta_deg, pp->speed);
     blueteeth_display(0, DISPLAY_LINE_11_Y,
-        "Percep: D=%d G=%d all_b=%d obs=%d",
-        perception->direction, perception->green,
+        "Percep: D=%d G=%d S=%d all_b=%d obs=%d",
+        perception->direction, perception->green, perception->stop_flag,
         perception->all_black_flag, perception->obstacle_flag);
 }
