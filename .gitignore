@@ -1,2 +1,6 @@
 build/
 .DS_Store
+*.swp
+*.orig
+.vscode/
+.idea/
