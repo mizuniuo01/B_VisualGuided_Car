@@ -68,18 +68,19 @@ pattern_state_t pattern_lookup(uint8_t sensor_data)
 
     /* 直角弯（单侧全亮） */
     if (sensor_data == 0b00001111 || sensor_data == 0b00011111 ||
-        sensor_data == 0b00111111 || sensor_data == 0b00000111 ||
-        sensor_data == 0b00101111 || sensor_data == 0b01101111) {
+        sensor_data == 0b00000111 || sensor_data == 0b00101111 ||
+        sensor_data == 0b01101111) {
         return PATTERN_RIGHT_ANGLE_LEFT;
     }
     if (sensor_data == 0b11110000 || sensor_data == 0b11111000 ||
-        sensor_data == 0b11111100 || sensor_data == 0b11100000 ||
-        sensor_data == 0b11110100 || sensor_data == 0b11110110) {
+        sensor_data == 0b11100000 || sensor_data == 0b11110100 ||
+        sensor_data == 0b11110110) {
         return PATTERN_RIGHT_ANGLE_RIGHT;
     }
 
     /* 十字/起止线（接近全亮） */
     if (sensor_data == 0b11111111 || sensor_data == 0b01111111 ||
+        sensor_data == 0b00111111 || sensor_data == 0b11111100 ||
         sensor_data == 0b11111110) {
         return PATTERN_CROSS;
     }

@@ -59,11 +59,13 @@ static int16_t saved_remaining_mm;
 /* 手动指令标志（STOP 状态下跳过每 tick 速度清零） */
 static uint8_t manual_override;
 
-/* 黑线路口后转弯缩减标志 */
-static uint8_t post_black_line_turn;
-
 /* STOP 标志物请求（当前运动完成后停车） */
 static uint8_t stop_requested;
+
+/* 方向坐标系补偿 */
+#define DIR_NUM 4
+static uint8_t direction_state;       /* 当前朝向：0=后 1=左 2=前 3=右（环形） */
+static int16_t direction_counter[DIR_NUM]; /* 各方向待修正计数（单位=100mm） */
 
 /**
  * @brief  根据方向获取旋转角度
@@ -86,6 +88,7 @@ static float get_turn_angle(uint8_t direction)
 void control_manager_init(void)
 {
     gyro_data_t gyro;
+    uint8_t i;
 
     state = CONTROL_MANAGER_STATE_STOP;
     substate = CONTROL_RUN_MOVE;
@@ -102,8 +105,11 @@ void control_manager_init(void)
     pre_obstacle_direction = 0;
     saved_remaining_mm = 0;
     manual_override = 0;
-    post_black_line_turn = 0;
     stop_requested = 0;
+    direction_state = 2; /* 前 */
+    for (i = 0; i < DIR_NUM; i++) {
+        direction_counter[i] = 0;
+    }
 
     gyro = gyro_get_data();
     *motion_control_get_target_angle_ptr() = gyro.yaw;
@@ -250,14 +256,6 @@ void control_manager_task(void)
                         saved_remaining_mm =
                             motion_manager_get_remaining_mm();
                         if (saved_remaining_mm > 0) {
-                            int16_t new_rem;
-
-                            /* 转弯标志：路口后首次前进缩短 15cm */
-                            if (last_direction == 1
-                                || last_direction == 2) {
-                                post_black_line_turn = 1;
-                            }
-
                             /* 激活冷却：记录剩余冷却距离 */
                             black_line_cooldown_active = 1;
                             black_line_cooldown_remaining =
@@ -265,17 +263,10 @@ void control_manager_task(void)
                             cooldown_prev_elapsed =
                                 motion_manager_get_elapsed_mm();
 
-                            /* 缩减距离 */
-                            new_rem = saved_remaining_mm
-                                - BLACK_LINE_GREEN_REDUCE_MM;
-                            if (new_rem < 1) {
-                                new_rem = 1;
-                            }
-
                             if (pd->green) {
                                 /* 绿灯：无缝继续剩余距离 */
                                 motion_manager_replan_remaining_mm(
-                                    new_rem);
+                                    saved_remaining_mm);
                             } else {
                                 /* 无绿灯：停车等待 */
                                 motion_manager_cancel();
@@ -300,16 +291,30 @@ void control_manager_task(void)
                         break;
                     }
                     if (last_direction == 1 || last_direction == 2) {
-                        /* 左转或右转 */
+                        /* 右转 +1 / 左转 -1（环形 0↔3） */
+                        if (last_direction == 1) {
+                            direction_state =
+                                (direction_state + 1) % DIR_NUM;
+                        } else {
+                            direction_state =
+                                (direction_state + DIR_NUM - 1)
+                                % DIR_NUM;
+                        }
+                        direction_counter[direction_state]++;
+
+                        /* 发起旋转 */
                         motion_manager_start_rotate(
                             get_turn_angle(last_direction),
                             plan_params.speed);
                         substate = CONTROL_RUN_TURN;
                     } else {
                         /* 直行（direction=0 或无效默认直行） */
+                        int16_t seg = plan_params.distance_mm;
+                        seg -= direction_counter[direction_state]
+                            * CONTROL_COMPENSATION_UNIT_MM;
+                        direction_counter[direction_state] = 0;
                         motion_manager_start_move(
-                            plan_params.distance_mm,
-                            plan_params.speed);
+                            seg, plan_params.speed);
                         /* 保持在 MOVE */
                     }
                 }
@@ -332,19 +337,11 @@ void control_manager_task(void)
                         control_manager_set_running(0);
                         break;
                     }
-                    /* 旋转完成，开始前进 */
-                    if (post_black_line_turn) {
-                        post_black_line_turn = 0;
-                        saved_remaining_mm =
-                            plan_params.distance_mm
-                            - BLACK_LINE_TURN_REDUCE_MM;
-                        if (saved_remaining_mm < 1) {
-                            saved_remaining_mm = 1;
-                        }
-                    } else {
-                        saved_remaining_mm =
-                            plan_params.distance_mm;
-                    }
+                    /* 旋转完成，计算补偿后前进距离 */
+                    saved_remaining_mm = plan_params.distance_mm;
+                    saved_remaining_mm -= direction_counter[direction_state]
+                        * CONTROL_COMPENSATION_UNIT_MM;
+                    direction_counter[direction_state] = 0;
                     move_pending_start = 1;
                     substate = CONTROL_RUN_MOVE;
                 }
@@ -358,12 +355,7 @@ void control_manager_task(void)
 
                 /* 等待绿灯 */
                 if (pd->green) {
-                    int16_t new_rem = saved_remaining_mm
-                        - BLACK_LINE_GREEN_REDUCE_MM;
-                    if (new_rem < 1) {
-                        new_rem = 1;
-                    }
-                    motion_manager_start_move(new_rem,
+                    motion_manager_start_move(saved_remaining_mm,
                         plan_params.speed);
                     substate = CONTROL_RUN_MOVE;
                 }
@@ -404,6 +396,7 @@ void control_manager_set_running(uint8_t run)
     if (run) {
         if (state == CONTROL_MANAGER_STATE_STOP) {
             gyro_data_t gyro;
+            uint8_t i;
 
             state = CONTROL_MANAGER_STATE_RUNNING;
             substate = CONTROL_RUN_MOVE;
@@ -416,8 +409,11 @@ void control_manager_set_running(uint8_t run)
             turn_pending_start = 0;
             obstacle_active = 0;
             manual_override = 0;
-            post_black_line_turn = 0;
             stop_requested = 0;
+            direction_state = 2;
+            for (i = 0; i < DIR_NUM; i++) {
+                direction_counter[i] = 0;
+            }
             saved_remaining_mm = plan_params.distance_mm;
 
             /* 锁定当前角度 */

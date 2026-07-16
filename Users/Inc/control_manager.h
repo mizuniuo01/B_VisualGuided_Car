@@ -4,20 +4,16 @@
 #include <stdint.h>
 
 /* 分段移动距离（mm） */
-#define CONTROL_SEGMENT_DISTANCE_MM 700
-
+#define CONTROL_SEGMENT_DISTANCE_MM 685
 /* 转弯角度（度） */
 #define CONTROL_TURN_ANGLE_RIGHT_DEG -90.0f /* 右转角度 */
 #define CONTROL_TURN_ANGLE_LEFT_DEG  90.0f  /* 左转角度 */
 
-/* 黑线缩减距离（mm） */
-#define BLACK_LINE_GREEN_REDUCE_MM 100
-
 /* 黑线冷却距离 50cm */
 #define BLACK_LINE_COOLDOWN_MM 500
 
-/* 黑线路口转弯后额外缩减距离（mm） */
-#define BLACK_LINE_TURN_REDUCE_MM 150
+/* 方向补偿单位长度（mm） */
+#define CONTROL_COMPENSATION_UNIT_MM 100
 
 /* 默认移动速度（count/10ms） */
 #define CONTROL_DEFAULT_SPEED 20
