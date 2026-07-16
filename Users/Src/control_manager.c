@@ -17,8 +17,6 @@
 #include "gyroscope.h"
 #include "system.h"
 
-#define BLACK_LINE_COOLDOWN_MM 500 /* 黑线冷却距离 50cm */
-
 volatile uint8_t control_manager_tick_flag = 0;
 
 /* 参数结构体（保留，bt_command 使用） */
@@ -42,7 +40,8 @@ static uint8_t last_direction; /* 最新有效方向（每 tick 更新） */
 /* 黑线边缘检测 */
 static uint8_t prev_all_black_flag;        /* 上一 tick 的黑线状态 */
 static uint8_t black_line_cooldown_active; /* 黑线冷却激活 */
-static int16_t black_line_cooldown_start_mm; /* 冷却起点已走距离 */
+static int16_t black_line_cooldown_remaining; /* 冷却剩余距离（mm），独立累计，跨段有效 */
+static int16_t cooldown_prev_elapsed; /* 上一 tick 的 elapsed_mm，用于计算步进 */
 
 /* 启动延迟标志（障碍物恢复后下一 tick 启动运动） */
 static uint8_t move_pending_start;
@@ -87,7 +86,8 @@ void control_manager_init(void)
     last_direction = 0;
     prev_all_black_flag = 0;
     black_line_cooldown_active = 0;
-    black_line_cooldown_start_mm = 0;
+    black_line_cooldown_remaining = 0;
+    cooldown_prev_elapsed = 0;
     move_pending_start = 0;
     turn_pending_start = 0;
     obstacle_active = 0;
@@ -202,24 +202,30 @@ void control_manager_task(void)
                 /* 启动延迟处理（障碍物恢复后首次进入） */
                 if (move_pending_start) {
                     move_pending_start = 0;
-                    black_line_cooldown_active = 0;
                     motion_manager_start_move(saved_remaining_mm,
                         plan_params.speed);
                     break;
                 }
 
-                /* 黑线冷却进度更新 */
+                /* 黑线冷却进度更新（独立累计距离，跨段有效） */
                 if (black_line_cooldown_active) {
-                    int16_t elapsed =
-                        motion_manager_get_elapsed_mm();
-                    if (elapsed >= black_line_cooldown_start_mm) {
-                        if (elapsed - black_line_cooldown_start_mm
-                            >= BLACK_LINE_COOLDOWN_MM) {
+                    int16_t now = motion_manager_get_elapsed_mm();
+                    int16_t step;
+                    if (now < cooldown_prev_elapsed) {
+                        /* move 被重启过，步进 = 当前段已走距离 */
+                        step = now;
+                    } else {
+                        step = now - cooldown_prev_elapsed;
+                    }
+                    cooldown_prev_elapsed = now;
+                    if (step > 0) {
+                        if (black_line_cooldown_remaining > step) {
+                            black_line_cooldown_remaining -= step;
+                        } else {
+                            black_line_cooldown_remaining = 0;
                             black_line_cooldown_active = 0;
                         }
                     }
-                    /* elapsed < cooldown_start: move 被重启过，
-                       保持在冷却期内 */
                 }
 
                 /* 黑线上升沿检测（冷却期内跳过） */
@@ -231,15 +237,26 @@ void control_manager_task(void)
                         saved_remaining_mm =
                             motion_manager_get_remaining_mm();
                         if (saved_remaining_mm > 0) {
-                            /* 激活冷却：记录触发点已走距离 */
+                            int16_t new_rem;
+
+                            /* 激活冷却：记录剩余冷却距离 */
                             black_line_cooldown_active = 1;
-                            black_line_cooldown_start_mm =
+                            black_line_cooldown_remaining =
+                                BLACK_LINE_COOLDOWN_MM;
+                            cooldown_prev_elapsed =
                                 motion_manager_get_elapsed_mm();
+
+                            /* 缩减距离 */
+                            new_rem = saved_remaining_mm
+                                - BLACK_LINE_GREEN_REDUCE_MM;
+                            if (new_rem < 1) {
+                                new_rem = 1;
+                            }
 
                             if (pd->green) {
                                 /* 绿灯：无缝继续剩余距离 */
                                 motion_manager_replan_remaining_mm(
-                                    saved_remaining_mm);
+                                    new_rem);
                             } else {
                                 /* 无绿灯：停车等待 */
                                 motion_manager_cancel();
@@ -247,6 +264,7 @@ void control_manager_task(void)
                                 motion_control_set_diff(0);
                                 substate =
                                     CONTROL_RUN_BLACK_LINE_WAIT;
+                                break;
                             }
                         }
                     }
@@ -258,7 +276,6 @@ void control_manager_task(void)
                 /* 距离规划完成检测 */
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
-                    black_line_cooldown_active = 0;
                     if (last_direction == 1 || last_direction == 2) {
                         /* 左转或右转 */
                         motion_manager_start_rotate(
@@ -289,7 +306,6 @@ void control_manager_task(void)
                 if (motion_manager_get_state()
                     == MOTION_MANAGER_STATE_NORMAL) {
                     /* 旋转完成，开始前进 */
-                    black_line_cooldown_active = 0;
                     saved_remaining_mm = plan_params.distance_mm;
                     move_pending_start = 1;
                     substate = CONTROL_RUN_MOVE;
@@ -304,7 +320,12 @@ void control_manager_task(void)
 
                 /* 等待绿灯 */
                 if (pd->green) {
-                    motion_manager_start_move(saved_remaining_mm,
+                    int16_t new_rem = saved_remaining_mm
+                        - BLACK_LINE_GREEN_REDUCE_MM;
+                    if (new_rem < 1) {
+                        new_rem = 1;
+                    }
+                    motion_manager_start_move(new_rem,
                         plan_params.speed);
                     substate = CONTROL_RUN_MOVE;
                 }
@@ -351,7 +372,8 @@ void control_manager_set_running(uint8_t run)
             last_direction = 0;
             prev_all_black_flag = 0;
             black_line_cooldown_active = 0;
-            black_line_cooldown_start_mm = 0;
+            black_line_cooldown_remaining = 0;
+            cooldown_prev_elapsed = 0;
             move_pending_start = 0;
             turn_pending_start = 0;
             obstacle_active = 0;
