@@ -57,6 +57,9 @@ static uint8_t                pre_obstacle_direction;
 /* 黑线等待上下文 */
 static int16_t saved_remaining_mm;
 
+/* 手动指令标志（STOP 状态下跳过每 tick 速度清零） */
+static uint8_t manual_override;
+
 /**
  * @brief  根据方向获取旋转角度
  * @param  direction  方向（1=右转, 2=左转）
@@ -92,6 +95,7 @@ void control_manager_init(void)
     pre_obstacle_remaining_mm = 0;
     pre_obstacle_direction = 0;
     saved_remaining_mm = 0;
+    manual_override = 0;
 
     gyro = gyro_get_data();
     *motion_control_get_target_angle_ptr() = gyro.yaw;
@@ -178,9 +182,18 @@ void control_manager_task(void)
     if (!obstacle_active) {
         switch (state) {
         case CONTROL_MANAGER_STATE_STOP:
-            motion_control_set_base_speed(0);
-            motion_control_set_diff(0);
-            motion_control_enable_angle(1);
+            if (manual_override) {
+                if (motion_manager_get_state()
+                    == MOTION_MANAGER_STATE_NORMAL) {
+                    manual_override = 0;
+                    motion_control_set_base_speed(0);
+                    motion_control_set_diff(0);
+                }
+            } else {
+                motion_control_set_base_speed(0);
+                motion_control_set_diff(0);
+                motion_control_enable_angle(1);
+            }
             break;
 
         case CONTROL_MANAGER_STATE_RUNNING:
@@ -342,6 +355,7 @@ void control_manager_set_running(uint8_t run)
             move_pending_start = 0;
             turn_pending_start = 0;
             obstacle_active = 0;
+            manual_override = 0;
             saved_remaining_mm = plan_params.distance_mm;
 
             /* 锁定当前角度 */
@@ -401,4 +415,16 @@ void control_manager_set_plan_params(const control_plan_params_t *p)
     plan_params = *p;
     /* 同步速度到基础参数 */
     normal_params.base_speed = p->speed;
+}
+
+/**
+ * @brief  设置手动指令模式（STOP 状态下允许运动）
+ * @note   蓝牙手动指令（move_start/rotate_start/rotate_right）调用前置位，
+ *         运动完成后自动清零
+ * @param  enable  非零启用手动模式，0 关闭
+ * @retval 无
+ */
+void control_manager_set_manual_override(uint8_t enable)
+{
+    manual_override = enable ? 1 : 0;
 }

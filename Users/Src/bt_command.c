@@ -291,6 +291,7 @@ void on_rotate_ang_down(void)
 void on_move_start(void)
 {
     const control_plan_params_t *p = control_manager_get_plan_params();
+    control_manager_set_manual_override(1);
     motion_manager_start_move(p->distance_mm, p->speed);
 }
 
@@ -302,6 +303,7 @@ void on_move_start(void)
 void on_rotate_start(void)
 {
     const control_plan_params_t *p = control_manager_get_plan_params();
+    control_manager_set_manual_override(1);
     motion_manager_start_rotate(p->delta_deg, p->speed);
 }
 
@@ -315,6 +317,7 @@ void on_rotate_start(void)
 void on_rotate_right(void)
 {
     const control_plan_params_t *p = control_manager_get_plan_params();
+    control_manager_set_manual_override(1);
     motion_manager_start_rotate(-90.0f, p->speed);
 }
 

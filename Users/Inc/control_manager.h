@@ -52,5 +52,6 @@ const control_normal_params_t *control_manager_get_normal_params(void);
 void control_manager_set_normal_params(const control_normal_params_t *p);
 const control_plan_params_t *control_manager_get_plan_params(void);
 void control_manager_set_plan_params(const control_plan_params_t *p);
+void control_manager_set_manual_override(uint8_t enable);
 
 #endif
