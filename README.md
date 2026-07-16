@@ -19,6 +19,6 @@ https://github.com/mizuniuo01/stm32-vscode-template
 完成docs/B题.pdf内的题目
 
 主要功能：
-- 双环循迹功能
-- 纯视觉循迹功能
-- 视觉识别以实现规则要求
+- 串级pid实现运动规划
+- Yolov5实现方向标志物识别与红绿灯识别
+- 灰度传感器模块与超声波模块实现黑线停止与障碍物检测
