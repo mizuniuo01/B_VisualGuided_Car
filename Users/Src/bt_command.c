@@ -333,6 +333,10 @@ void on_ctrl_toggle(void)
         control_manager_set_running(1);
     } else {
         control_manager_set_running(0);
+        if(1)
+        {
+            
+        }
     }
 }
 
